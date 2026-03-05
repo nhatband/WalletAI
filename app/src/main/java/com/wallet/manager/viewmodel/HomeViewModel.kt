@@ -181,7 +181,7 @@ class HomeViewModel(
             if (currentShares.containsKey(friendId)) {
                 currentShares.remove(friendId)
             } else {
-                currentShares[friendId] = 1
+                currentShares[friendId] = 0 // Khởi tạo bằng 0 thay vì 1
             }
             it.copy(selectedFriendShares = currentShares, errorMessage = null)
         }
@@ -192,7 +192,6 @@ class HomeViewModel(
             val currentShares = it.selectedFriendShares.toMutableMap()
             val current = currentShares[friendId] ?: 0
             val next = (current + delta).coerceAtLeast(0)
-            // Không xóa khỏi map nếu bằng 0 để giữ trong danh sách hiển thị
             currentShares[friendId] = next
             it.copy(selectedFriendShares = currentShares, errorMessage = null)
         }
@@ -203,6 +202,9 @@ class HomeViewModel(
         val amount = state.manualAmount.toDoubleOrNull() ?: return
         
         viewModelScope.launch {
+            val validShares = state.selectedFriendShares
+            val isSplit = validShares.isNotEmpty()
+            
             val expense = Expense(
                 id = state.editingExpenseId ?: 0L,
                 type = state.manualType,
@@ -212,14 +214,12 @@ class HomeViewModel(
                 date = state.manualDateMillis,
                 imageUri = imageUri,
                 createdAt = System.currentTimeMillis(),
-                isSplit = state.isSplit,
+                isSplit = isSplit,
                 payerId = state.payerId,
                 isSettled = state.isSettled,
                 myShareCount = state.myShareCount
             )
             
-            // Chỉ lưu những người có suất > 0
-            val validShares = state.selectedFriendShares.filter { it.value > 0 }
             repo.addExpenseWithFriends(expense, validShares, state.isSettled)
             
             _uiState.update {

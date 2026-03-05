@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,10 +27,15 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.wallet.manager.R
 import com.wallet.manager.viewmodel.FriendDebt
 import com.wallet.manager.viewmodel.StatsFilter
@@ -39,6 +45,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private val vnLocale = Locale("vi", "VN")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,7 +179,7 @@ private fun FriendDebtList(debts: List<FriendDebt>) {
         debts.forEach { debt ->
             val isOwedToMe = debt.netAmount > 0
             val color = if (isOwedToMe) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-            val amountText = if (isOwedToMe) "+${"%,.0f".format(debt.netAmount)}" else "${"%,.0f".format(debt.netAmount)}"
+            val amountText = if (isOwedToMe) "+${String.format(vnLocale, "%,.0f", debt.netAmount)}" else "${String.format(vnLocale, "%,.0f", debt.netAmount)}"
             
             Surface(
                 shape = MaterialTheme.shapes.medium,
@@ -247,7 +255,7 @@ private fun DebtItem(
             Text(label, style = MaterialTheme.typography.bodySmall)
         }
         Text(
-            text = "${"%,.0f".format(amount)} đ",
+            text = "${String.format(vnLocale, "%,.0f", amount)} đ",
             style = MaterialTheme.typography.titleMedium,
             color = color,
             fontWeight = FontWeight.Bold
@@ -299,59 +307,38 @@ private fun StatsCards(
     avgPerDay: Double,
     maxExpense: Double
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatCardWide(
-            title = stringResource(R.string.actual_spent),
-            value = totalSpent,
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatsCard(
+            label = stringResource(R.string.stat_total),
+            value = "${String.format(vnLocale, "%,.0f", totalSpent)} đ",
             icon = Icons.Default.Payments,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCardSmall(title = stringResource(R.string.stat_avg), value = avgPerDay, modifier = Modifier.weight(1f))
-            StatCardSmall(title = stringResource(R.string.stat_max), value = maxExpense, modifier = Modifier.weight(1f))
-        }
+        StatsCard(
+            label = stringResource(R.string.stat_avg),
+            value = "${String.format(vnLocale, "%,.0f", avgPerDay)} đ",
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun StatCardWide(title: String, value: Double, icon: ImageVector, color: Color) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(color.copy(alpha = 0.1f), MaterialTheme.shapes.medium),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = color)
-            }
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.labelMedium)
-                Text(
-                    text = "${"%,.0f".format(value)} đ",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = color
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatCardSmall(title: String, value: Double, modifier: Modifier = Modifier) {
+private fun StatsCard(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier
+) {
     ElevatedCard(modifier = modifier) {
         Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.labelSmall)
-            Text(
-                text = "${"%,.0f".format(value)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall)
+            Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -364,31 +351,40 @@ private fun PieChartSection(data: List<Pair<String, Double>>) {
     }
 
     val total = data.sumOf { it.second }
+    // Bảng màu rực rỡ hơn để không bị chìm
     val colors = listOf(
-        Color(0xFF2196F3), Color(0xFFE91E63), Color(0xFFFF9800),
-        Color(0xFF4CAF50), Color(0xFF9C27B0), Color(0xFF00BCD4)
+        Color(0xFF4F46E5), // Indigo rực rỡ
+        Color(0xFFDB2777), // Pink rực rỡ
+        Color(0xFFD97706), // Amber rực rỡ
+        Color(0xFF059669), // Emerald rực rỡ
+        Color(0xFF2563EB), // Blue rực rỡ
+        Color(0xFF7C3AED)  // Violet rực rỡ
     )
 
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Canvas(modifier = Modifier.size(140.dp)) {
-            var startAngle = -90f
-            data.forEachIndexed { index, (_, value) ->
-                val sweep = if (total == 0.0) 0f else (value / total * 360f).toFloat()
-                drawArc(
-                    color = colors[index % colors.size],
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
-                    useCenter = true,
-                    size = Size(size.width, size.height)
-                )
-                startAngle += sweep
+        Box(modifier = Modifier.size(150.dp)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                var startAngle = 0f
+                data.forEachIndexed { index, pair ->
+                    val sweepAngle = (pair.second / total * 360).toFloat()
+                    drawArc(
+                        color = colors[index % colors.size],
+                        startAngle = startAngle,
+                        sweepAngle = sweepAngle,
+                        useCenter = true,
+                        size = Size(size.width, size.height)
+                    )
+                    startAngle += sweepAngle
+                }
             }
         }
+
         Spacer(Modifier.width(24.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             data.forEachIndexed { index, (label, value) ->
                 val translatedLabel = when (label) {
                     "Ăn uống" -> stringResource(R.string.cat_food)
@@ -403,7 +399,7 @@ private fun PieChartSection(data: List<Pair<String, Double>>) {
                     Box(modifier = Modifier.size(10.dp).background(colors[index % colors.size], MaterialTheme.shapes.extraSmall))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "$translatedLabel: ${"%,.0f".format(value)}",
+                        text = "$translatedLabel: ${String.format(vnLocale, "%,.0f", value)}",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -425,11 +421,28 @@ private fun BarChartSection(dailySpending: List<DailySpending>) {
         }
     }
 
+    val labelColor = MaterialTheme.colorScheme.onSurface
+    val guidelineColor = MaterialTheme.colorScheme.outlineVariant
+    val primaryColor = Color(0xFF2563EB) // Màu xanh rực rỡ cho cột
+
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberColumnCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
+            rememberColumnCartesianLayer(
+                columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                    rememberLineComponent(
+                        fill = fill(primaryColor),
+                        thickness = 16.dp,
+                        shape = CorneredShape.rounded(4f) // Sử dụng pixel size Float theo API của Vico core
+                    )
+                )
+            ),
+            startAxis = VerticalAxis.rememberStart(
+                label = rememberTextComponent(color = labelColor),
+                horizontalLabelPosition = VerticalAxis.HorizontalLabelPosition.Outside,
+                guideline = rememberLineComponent(fill = fill(guidelineColor))
+            ),
             bottomAxis = HorizontalAxis.rememberBottom(
+                label = rememberTextComponent(color = labelColor),
                 valueFormatter = { _, value, _ ->
                     dailySpending.getOrNull(value.toInt())?.dateLabel ?: ""
                 }

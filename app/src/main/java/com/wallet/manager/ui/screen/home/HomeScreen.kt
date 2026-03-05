@@ -27,8 +27,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +49,50 @@ import com.wallet.manager.viewmodel.HomeViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+
+private val vnLocale = Locale("vi", "VN")
+
+class ThousandSeparatorVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val originalText = text.text
+        if (originalText.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
+
+        val formattedText = StringBuilder()
+        for (i in originalText.indices) {
+            formattedText.append(originalText[i])
+            if ((originalText.length - 1 - i) % 3 == 0 && i != originalText.length - 1) {
+                formattedText.append('.')
+            }
+        }
+
+        val out = formattedText.toString()
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                if (offset <= 0) return 0
+                var dots = 0
+                for (i in 0 until offset) {
+                    if (i < originalText.length - 1 && (originalText.length - 1 - i) % 3 == 0) {
+                        dots++
+                    }
+                }
+                return offset + dots
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                var dots = 0
+                for (i in 0 until offset) {
+                    if (i < out.length && out[i] == '.') {
+                        dots++
+                    }
+                }
+                return (offset - dots).coerceAtLeast(0)
+            }
+        }
+
+        return TransformedText(AnnotatedString(out), offsetMapping)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -270,7 +318,7 @@ private fun ExpenseItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${"%,.0f".format(expense.amount)} đ",
+                    text = "${String.format(vnLocale, "%,.0f", expense.amount)} đ",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -380,13 +428,6 @@ private fun ExpenseBottomSheet(
                     }
 
                     if (state.selectedFriendShares.isNotEmpty()) {
-                        item {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = state.isSplit, onCheckedChange = { vm.onManualFieldChange(isSplit = it) })
-                                Text(stringResource(R.string.split_equally))
-                            }
-                        }
-
                         item {
                             Text(stringResource(R.string.shares_counter), style = MaterialTheme.typography.titleSmall)
                             Spacer(Modifier.height(8.dp))
@@ -562,7 +603,7 @@ private fun ExpenseForm(
         OutlinedTextField(
             value = state.manualTitle,
             onValueChange = { onFieldChange(null, it, null, null, null) },
-            label = { Text(stringResource(R.string.friend_name).replace("bạn bè", "chi tiêu")) }, // Reusing or just hardcode if needed
+            label = { Text(stringResource(R.string.amount_name).replace("chi tiêu", "chi tiêu")) }, // Reusing or just hardcode if needed
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -572,6 +613,7 @@ private fun ExpenseForm(
             label = { Text(stringResource(R.string.amount)) },
             suffix = { Text("VNĐ") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            visualTransformation = ThousandSeparatorVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -702,7 +744,7 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
         title = { Text(expense.title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DetailRow(stringResource(R.string.amount), "${"%,.0f".format(expense.amount)} đ")
+                DetailRow(stringResource(R.string.amount), "${String.format(vnLocale, "%,.0f", expense.amount)} đ")
                 DetailRow(stringResource(R.string.expense_type), expense.type)
                 DetailRow(stringResource(R.string.date), dateFormat.format(Date(expense.date)))
                 if (expense.content.isNotEmpty()) DetailRow("Ghi chú", expense.content)
@@ -716,7 +758,7 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
                     val totalShares = expense.myShareCount + item.friendCrossRefs.sumOf { it.shareCount }
                     val amountPerShare = if (totalShares > 0) expense.amount / totalShares else 0.0
                     
-                    DetailRow(stringResource(R.string.me), "${expense.myShareCount} suất (${"%,.0f".format(amountPerShare * expense.myShareCount)} đ)")
+                    DetailRow(stringResource(R.string.me), "${expense.myShareCount} suất (${String.format(vnLocale, "%,.0f", amountPerShare * expense.myShareCount)} đ)")
                     item.friends.forEach { friend ->
                         val crossRef = item.friendCrossRefs.find { it.friendId == friend.id }
                         val shares = crossRef?.shareCount ?: 0
@@ -730,7 +772,7 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
                                     Spacer(Modifier.width(4.dp))
                                 }
                                 Text(
-                                    text = "$shares suất (${"%,.0f".format(amountPerShare * shares)} đ)",
+                                    text = "$shares suất (${String.format(vnLocale, "%,.0f", amountPerShare * shares)} đ)",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = if (settled) Color(0xFF4CAF50) else Color.Unspecified

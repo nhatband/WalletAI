@@ -8,6 +8,7 @@
     <string name="add_expense">Thêm chi tiêu</string>
     <string name="total_balance">Tổng số dư</string>
     <string name="expense_type">Loại chi</string>
+    <string name="amount_name">Tên chi tiêu</string>
     <string name="amount">Số tiền</string>
     <string name="date">Ngày</string>
     <string name="save">Lưu</string>

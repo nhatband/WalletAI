@@ -8,6 +8,7 @@
     <string name="add_expense">Add Expense</string>
     <string name="total_balance">Total Balance</string>
     <string name="expense_type">Type</string>
+    <string name="amount_name">Amount Name</string>
     <string name="amount">Amount</string>
     <string name="date">Date</string>
     <string name="save">Save</string>
