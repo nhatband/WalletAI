@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.wallet.manager.R
 import com.wallet.manager.ai.GeminiBillParser
 import com.wallet.manager.data.local.db.AppDatabase
 import com.wallet.manager.data.local.db.ExpenseWithFriends
@@ -43,7 +44,7 @@ data class HomeUiState(
     val detailDialogExpense: ExpenseWithFriends? = null,
     val editingExpenseId: Long? = null,
     val searchQuery: String = "",
-    val selectedFilterType: String = "Tất cả",
+    val selectedFilterTypeResId: Int? = null, // null means "All"
     val pendingDeleteExpense: Expense? = null,
     
     // Friend related fields in form
@@ -64,6 +65,7 @@ class HomeViewModel(
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
+    
     val uiState: StateFlow<HomeUiState> = combine(
         repo.getAllExpensesWithFriends(),
         friendRepo.getAllFriends(),
@@ -73,7 +75,14 @@ class HomeViewModel(
             val expense = item.expense
             val matchesSearch = expense.title.contains(currentState.searchQuery, ignoreCase = true) ||
                     expense.content.contains(currentState.searchQuery, ignoreCase = true)
-            val matchesFilter = currentState.selectedFilterType == "Tất cả" || expense.type == currentState.selectedFilterType
+            
+            val matchesFilter = if (currentState.selectedFilterTypeResId == null) {
+                true
+            } else {
+                val resId = currentState.selectedFilterTypeResId
+                // Compare with current localized string AND legacy/alternative localized strings
+                expense.type == getApplication<Application>().getString(resId) || isLegacyMatch(expense.type, resId)
+            }
             matchesSearch && matchesFilter
         }
         currentState.copy(
@@ -87,12 +96,24 @@ class HomeViewModel(
         initialValue = HomeUiState()
     )
 
+    private fun isLegacyMatch(type: String, resId: Int): Boolean {
+        return when (resId) {
+            R.string.cat_food -> type == "Ăn uống" || type == "Food & Drinks"
+            R.string.cat_transport -> type == "Di chuyển" || type == "Transport"
+            R.string.cat_shopping -> type == "Mua sắm" || type == "Shopping"
+            R.string.cat_entertainment -> type == "Giải trí" || type == "Entertainment"
+            R.string.cat_study -> type == "Học tập" || type == "Study"
+            R.string.cat_other -> type == "Khác" || type == "Other"
+            else -> false
+        }
+    }
+
     fun onSearchQueryChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }
 
-    fun onFilterTypeChange(type: String) {
-        _uiState.update { it.copy(selectedFilterType = type) }
+    fun onFilterTypeChange(typeResId: Int?) {
+        _uiState.update { it.copy(selectedFilterTypeResId = typeResId) }
     }
 
     fun onFabClicked() {
@@ -100,7 +121,7 @@ class HomeViewModel(
             it.copy(
                 isBottomSheetOpen = true,
                 editingExpenseId = null,
-                manualType = "Ăn uống",
+                manualType = getApplication<Application>().getString(R.string.cat_food),
                 manualTitle = "",
                 manualContent = "",
                 manualAmount = "",

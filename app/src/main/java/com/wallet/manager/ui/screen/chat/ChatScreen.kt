@@ -1,10 +1,10 @@
 package com.wallet.manager.ui.screen.chat
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
@@ -13,9 +13,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wallet.manager.R
@@ -135,12 +143,81 @@ private fun ChatBubble(message: ChatMessage) {
             shape = shape,
             tonalElevation = 1.dp
         ) {
-            Text(
-                text = message.text,
-                modifier = Modifier.padding(12.dp),
-                color = textColor,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            SelectionContainer {
+                if (isUser) {
+                    Text(
+                        text = message.text,
+                        modifier = Modifier.padding(12.dp),
+                        color = textColor,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                } else {
+                    MarkdownText(
+                        text = message.text,
+                        modifier = Modifier.padding(12.dp),
+                        color = textColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarkdownText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified) {
+    val annotatedString = remember(text) { parseMarkdown(text) }
+    Text(
+        text = annotatedString,
+        modifier = modifier,
+        color = color,
+        style = MaterialTheme.typography.bodyLarge
+    )
+}
+
+/**
+ * A simple markdown parser for bold (**) and italic (*) text.
+ */
+fun parseMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        val boldItalicRegex = Regex("""\*\*\*(.*?)\*\*\*""")
+        val boldRegex = Regex("""\*\*(.*?)\*\*""")
+        val italicRegex = Regex("""\*(.*?)\*""")
+        
+        val matches = (boldItalicRegex.findAll(text) + boldRegex.findAll(text) + italicRegex.findAll(text))
+            .sortedBy { it.range.first }
+            .toList()
+
+        var lastIndex = 0
+        for (match in matches) {
+            // Check for overlap with previous match
+            if (match.range.first < lastIndex) continue
+
+            // Append text before the match
+            append(text.substring(lastIndex, match.range.first))
+            
+            val content = match.groupValues[1]
+            when {
+                match.value.startsWith("***") -> {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
+                        append(content)
+                    }
+                }
+                match.value.startsWith("**") -> {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(content)
+                    }
+                }
+                match.value.startsWith("*") -> {
+                    withStyle(style = SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(content)
+                    }
+                }
+            }
+            lastIndex = match.range.last + 1
+        }
+        
+        if (lastIndex < text.length) {
+            append(text.substring(lastIndex))
         }
     }
 }

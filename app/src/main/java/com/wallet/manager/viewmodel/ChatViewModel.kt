@@ -100,27 +100,62 @@ class ChatViewModel(
                 expensesWithFriends.forEach { item ->
                     val e = item.expense
                     val obj = JSONObject()
+                    obj.put("id", e.id)
                     obj.put("type", e.type)
                     obj.put("title", e.title)
                     obj.put("amount", e.amount)
                     obj.put("date", e.date)
                     obj.put("isSplit", e.isSplit)
+                    obj.put("myShareCount", e.myShareCount)
                     
                     val payerName = if (e.payerId == null) "Tôi" else friendsMap[e.payerId]?.name ?: "Người lạ"
                     obj.put("payer", payerName)
                     
                     val friendsInvolved = JSONArray()
-                    item.friends.forEach { f ->
-                        friendsInvolved.put(f.name)
+                    item.friendCrossRefs.forEach { ref ->
+                        val f = friendsMap[ref.friendId]
+                        if (f != null) {
+                            val fObj = JSONObject()
+                            fObj.put("name", f.name)
+                            fObj.put("shareCount", ref.shareCount)
+                            fObj.put("isSettled", ref.isSettled)
+                            friendsInvolved.put(fObj)
+                        }
                     }
-                    obj.put("friendsInvolved", friendsInvolved)
+                    obj.put("participants", friendsInvolved)
                     
                     arr.put(obj)
                 }
                 
                 val summary = JSONObject()
                 summary.put("expenses", arr)
-                summary.put("note", "Nếu isSplit là true, số tiền được chia đều cho Tôi và tất cả những người trong friendsInvolved. Nếu Payer là Tôi, những người khác nợ tôi. Nếu Payer là một người bạn, tôi nợ họ phần của tôi.")
+                summary.put("instruction", """
+                    Bạn là một trợ lý tài chính cá nhân thân thiện, thông minh tên là "Ví Thông Minh". 
+                    Nhiệm vụ của bạn là giúp người dùng phân tích nợ nần và chi tiêu một cách dễ hiểu, gần gũi như một người bạn.
+
+                    PHONG CÁCH TRẢ LỜI:
+                    - Thân thiện, sử dụng ngôn ngữ tự nhiên (ví dụ: "Chào bạn nè!", "Để mình kiểm tra giúp nhé...", "Đừng lo, mình tính xong rồi đây!").
+                    - Sử dụng emoji phù hợp để làm câu trả lời sinh động (💰, 🤝, 📊, ✨).
+                    - Trình bày thông tin rõ ràng, ưu tiên sử dụng danh sách (bullet points) hoặc bảng đơn giản nếu có nhiều số liệu.
+                    - Tập trung vào việc giải quyết nỗi lo về nợ nần: nhấn mạnh ai nợ ai bao nhiêu và khoản nào đã trả/chưa trả.
+
+                    DỮ LIỆU PHÂN TÍCH:
+                    ${arr}
+
+                    QUY TẮC TÍNH TOÁN (Hãy tự tính toán dựa trên logic này):
+                    1. Mỗi chi tiêu có tổng số suất (shares) = myShareCount + tổng shareCount của các participants.
+                    2. Số tiền mỗi suất = amount / tổng số suất.
+                    3. Nếu Payer (Người trả) là 'Tôi':
+                       - Bạn bè trong 'participants' nợ 'Tôi' số tiền = (số suất của họ) * (số tiền mỗi suất).
+                       - Nếu isSettled = true: họ đã trả rồi (ghi nhận là 'Đã thanh toán').
+                       - Nếu isSettled = false: họ vẫn còn nợ (ghi nhận là 'Chưa thanh toán').
+                    4. Nếu Payer là một người bạn (ví dụ 'Nguyễn Văn B'):
+                       - 'Tôi' nợ 'Nguyễn Văn B' số tiền = myShareCount * (số tiền mỗi suất).
+                       - Nếu isSettled = true: tôi đã trả rồi.
+                       - Nếu isSettled = false: tôi vẫn còn nợ bạn đó.
+
+                    Hãy trả lời câu hỏi của người dùng dựa trên dữ liệu và phong cách trên. Nếu người dùng chỉ chào hỏi, hãy giới thiệu bản thân một cách dễ thương.
+                """.trimIndent())
 
                 val reply = assistant.chatWithContext(messageText, summary.toString())
 

@@ -138,7 +138,7 @@ fun HomeScreen(
             SearchAndFilterHeader(
                 searchQuery = state.searchQuery,
                 onSearchChange = vm::onSearchQueryChange,
-                selectedType = state.selectedFilterType,
+                selectedTypeResId = state.selectedFilterTypeResId,
                 onTypeChange = vm::onFilterTypeChange
             )
 
@@ -182,17 +182,17 @@ fun HomeScreen(
 private fun SearchAndFilterHeader(
     searchQuery: String,
     onSearchChange: (String) -> Unit,
-    selectedType: String,
-    onTypeChange: (String) -> Unit
+    selectedTypeResId: Int?,
+    onTypeChange: (Int?) -> Unit
 ) {
-    val types = listOf(
-        stringResource(R.string.cat_all),
-        stringResource(R.string.cat_food),
-        stringResource(R.string.cat_transport),
-        stringResource(R.string.cat_shopping),
-        stringResource(R.string.cat_entertainment),
-        stringResource(R.string.cat_study),
-        stringResource(R.string.cat_other)
+    val filterOptions = listOf(
+        null to stringResource(R.string.cat_all),
+        R.string.cat_food to stringResource(R.string.cat_food),
+        R.string.cat_transport to stringResource(R.string.cat_transport),
+        R.string.cat_shopping to stringResource(R.string.cat_shopping),
+        R.string.cat_entertainment to stringResource(R.string.cat_entertainment),
+        R.string.cat_study to stringResource(R.string.cat_study),
+        R.string.cat_other to stringResource(R.string.cat_other)
     )
     
     Column(modifier = Modifier.padding(16.dp)) {
@@ -207,11 +207,11 @@ private fun SearchAndFilterHeader(
         )
         Spacer(Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(types) { type ->
+            items(filterOptions) { (resId, label) ->
                 FilterChip(
-                    selected = selectedType == type,
-                    onClick = { onTypeChange(type) },
-                    label = { Text(type) }
+                    selected = selectedTypeResId == resId,
+                    onClick = { onTypeChange(resId) },
+                    label = { Text(label) }
                 )
             }
         }
@@ -263,11 +263,11 @@ private fun ExpenseItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val icon = when (expense.type) {
-                "Ăn uống", stringResource(R.string.cat_food) -> Icons.Default.Restaurant
-                "Di chuyển", stringResource(R.string.cat_transport) -> Icons.Default.DirectionsCar
-                "Mua sắm", stringResource(R.string.cat_shopping) -> Icons.Default.ShoppingBag
-                "Giải trí", stringResource(R.string.cat_entertainment) -> Icons.Default.SportsEsports
-                "Học tập", stringResource(R.string.cat_study) -> Icons.Default.School
+                "Ăn uống", stringResource(R.string.cat_food), "Food & Drinks" -> Icons.Default.Restaurant
+                "Di chuyển", stringResource(R.string.cat_transport), "Transport" -> Icons.Default.DirectionsCar
+                "Mua sắm", stringResource(R.string.cat_shopping), "Shopping" -> Icons.Default.ShoppingBag
+                "Giải trí", stringResource(R.string.cat_entertainment), "Entertainment" -> Icons.Default.SportsEsports
+                "Học tập", stringResource(R.string.cat_study), "Study" -> Icons.Default.School
                 else -> Icons.Default.Category
             }
 
@@ -504,6 +504,9 @@ private fun ExpenseBottomSheet(
                 }
 
                 item {
+                    state.errorMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
                     Button(
                         onClick = { vm.saveExpense(state.billImageUri) },
                         modifier = Modifier.fillMaxWidth(),
