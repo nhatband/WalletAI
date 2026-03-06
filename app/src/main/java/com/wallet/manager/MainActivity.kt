@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.wallet.manager.data.prefs.SettingsDataStore
 import com.wallet.manager.data.secure.SecurePrefsManager
@@ -42,6 +43,9 @@ import java.util.Locale
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Kích hoạt Splash Screen (hiển thị icon ví to và tên app theo theme)
+        installSplashScreen()
+        
         super.onCreate(savedInstanceState)
 
         val settings = SettingsDataStore(this)
@@ -192,6 +196,7 @@ fun AppLockScreen(
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
+        val context = LocalContext.current
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center

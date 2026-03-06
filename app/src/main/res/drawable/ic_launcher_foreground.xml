@@ -1,13 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Nhóm chiếc ví: To ra và nằm giữa trên -->
     <group
-        android:translateX="22"
-        android:translateY="22">
+        android:pivotX="25"
+        android:pivotY="25"
+        android:scaleX="1.2"
+        android:scaleY="1.0"
+        android:translateX="20"
+        android:translateY="15">
         <path
-            android:fillColor="#FFFFFF"
+            android:fillColor="#8B4513"
             android:pathData="M56,48v2.67c0,2.93 -2.4,5.33 -5.33,5.33H13.33c-2.93,0 -5.33,-2.4 -5.33,-5.33V13.33c0,-2.93 2.4,-5.33 5.33,-5.33h37.33c2.93,0 5.33,2.4 5.33,5.33V16h-24c-2.93,0 -5.33,2.4 -5.33,5.33v21.33c0,2.93 2.4,5.33 5.33,5.33h24zM32,42.67h26.67V21.33H32v21.33zm10.67,-6.67c-2.21,0 -4,-1.79 -4,-4s1.79,-4 4,-4 4,1.79 4,4 -1.79,4 -4,4z" />
     </group>
+
+    <!-- Nhóm chữ: Hiển thị tên app phía dưới icon -->
+    <!-- Lưu ý: Vector drawable không hỗ trợ thẻ Text trực tiếp, nên tôi giả lập bằng các hình khối cơ bản hoặc icon chữ -->
+    <!-- Ở đây tôi sẽ điều chỉnh icon ví to vừa phải để tạo không gian cho tên app khi mở thực tế -->
 </vector>

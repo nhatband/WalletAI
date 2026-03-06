@@ -2,15 +2,25 @@
     <!-- Base application theme: no native ActionBar, Compose sẽ tự vẽ top bar. -->
     <style name="Theme.WalletManager" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorPrimary">#D32F2F</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorSecondary">#8B4513</item>
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Màu nền trắng tinh khôi cho Splash Screen -->
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <!-- Icon ví to đã cấu hình -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!-- Thời gian hiển thị -->
+        <item name="windowSplashScreenAnimationDuration">800</item>
+        <!-- Theme sẽ chuyển sang sau khi splash kết thúc -->
+        <item name="postSplashScreenTheme">@style/Theme.WalletManager</item>
     </style>
 </resources>
