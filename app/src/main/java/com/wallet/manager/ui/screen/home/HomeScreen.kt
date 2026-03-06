@@ -413,6 +413,7 @@ private fun ExpenseBottomSheet(
                     item {
                         ExpenseForm(
                             state = state,
+                            vm = vm,
                             onFieldChange = vm::onManualFieldChange,
                             onPhotoClick = { photoPickerLauncher.launch("image/*") },
                             onClearPhoto = { vm.onManualFieldChange(clearBillImage = true) }
@@ -549,6 +550,7 @@ private fun ShareCounter(
 @Composable
 private fun ExpenseForm(
     state: HomeUiState,
+    vm: HomeViewModel,
     onFieldChange: (
         type: String? ,
         title: String? ,
@@ -559,13 +561,13 @@ private fun ExpenseForm(
     onPhotoClick: () -> Unit,
     onClearPhoto: () -> Unit
 ) {
-    val types = listOf(
-        stringResource(R.string.cat_food),
-        stringResource(R.string.cat_transport),
-        stringResource(R.string.cat_shopping),
-        stringResource(R.string.cat_entertainment),
-        stringResource(R.string.cat_study),
-        stringResource(R.string.cat_other)
+    val categoryOptions = listOf(
+        R.string.cat_food,
+        R.string.cat_transport,
+        R.string.cat_shopping,
+        R.string.cat_entertainment,
+        R.string.cat_study,
+        R.string.cat_other
     )
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -594,11 +596,12 @@ private fun ExpenseForm(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            types.forEach { type ->
+            categoryOptions.forEach { resId ->
+                val label = stringResource(resId)
                 FilterChip(
-                    selected = state.manualType == type,
-                    onClick = { onFieldChange(type, null, null, null, null) },
-                    label = { Text(type) }
+                    selected = vm.isCategoryMatch(state.manualType, resId),
+                    onClick = { onFieldChange(label, null, null, null, null) },
+                    label = { Text(label) }
                 )
             }
         }

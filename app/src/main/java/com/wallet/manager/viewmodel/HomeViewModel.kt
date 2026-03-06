@@ -81,7 +81,7 @@ class HomeViewModel(
             } else {
                 val resId = currentState.selectedFilterTypeResId
                 // Compare with current localized string AND legacy/alternative localized strings
-                expense.type == getApplication<Application>().getString(resId) || isLegacyMatch(expense.type, resId)
+                isCategoryMatch(expense.type, resId)
             }
             matchesSearch && matchesFilter
         }
@@ -95,6 +95,11 @@ class HomeViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeUiState()
     )
+
+    fun isCategoryMatch(type: String?, resId: Int): Boolean {
+        if (type == null) return false
+        return type == getApplication<Application>().getString(resId) || isLegacyMatch(type, resId)
+    }
 
     private fun isLegacyMatch(type: String, resId: Int): Boolean {
         return when (resId) {
