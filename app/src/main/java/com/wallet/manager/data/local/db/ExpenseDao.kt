@@ -52,13 +52,14 @@ interface ExpenseDao {
     suspend fun deleteFriendCrossRefsForExpense(expenseId: Long)
     
     @Transaction
-    suspend fun upsertExpenseWithFriends(expense: Expense, friendShares: Map<Long, Int>, isSettled: Boolean) {
+    suspend fun upsertExpenseWithFriends(expense: Expense, friendShares: Map<Long, Int>, isSettled: Boolean): Long {
         val id = insert(expense)
         deleteFriendCrossRefsForExpense(id)
         val refs = friendShares.map { (friendId, shareCount) -> 
             ExpenseFriendCrossRef(id, friendId, shareCount, isSettled)
         }
         insertFriendCrossRefs(refs)
+        return id
     }
 
     @Query("UPDATE expense_friend_cross_ref SET isSettled = :isSettled WHERE expenseId = :expenseId AND friendId = :friendId")

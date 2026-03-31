@@ -4,6 +4,7 @@ import com.wallet.manager.data.local.db.ExpenseDao
 import com.wallet.manager.data.local.db.ExpenseWithFriends
 import com.wallet.manager.data.local.db.TypeTotalProjection
 import com.wallet.manager.data.local.entity.Expense
+import com.wallet.manager.data.remote.supabase.SupabaseService
 import kotlinx.coroutines.flow.Flow
 
 interface ExpenseRepository {
@@ -20,7 +21,8 @@ interface ExpenseRepository {
 }
 
 class ExpenseRepositoryImpl(
-    private val dao: ExpenseDao
+    private val dao: ExpenseDao,
+    private val supabaseService: SupabaseService = SupabaseService()
 ) : ExpenseRepository {
     override fun getAllExpenses(): Flow<List<Expense>> = dao.getAllExpenses()
     override fun getAllExpensesWithFriends(): Flow<List<ExpenseWithFriends>> = dao.getAllExpensesWithFriends()
@@ -35,19 +37,38 @@ class ExpenseRepositoryImpl(
         dao.getTotalByType(from, to)
 
     override suspend fun addExpense(expense: Expense) {
-        dao.insert(expense)
+        val id = dao.insert(expense)
+        try {
+            supabaseService.syncExpense(expense.copy(id = id))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun addExpenseWithFriends(expense: Expense, friendShares: Map<Long, Int>, isSettled: Boolean) {
-        dao.upsertExpenseWithFriends(expense, friendShares, isSettled)
+        val expenseId = dao.upsertExpenseWithFriends(expense, friendShares, isSettled)
+        try {
+            supabaseService.syncExpense(expense.copy(id = expenseId))
+            friendShares.keys.forEach { friendId ->
+                supabaseService.syncExpenseFriendCrossRef(expenseId, friendId)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun deleteExpense(expense: Expense) {
         dao.delete(expense)
+        try {
+            supabaseService.deleteExpense(expense.id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun settleExpenseForFriend(expenseId: Long, friendId: Long, isSettled: Boolean) {
         dao.updateSettlementStatus(expenseId, friendId, isSettled)
+        // Note: You might need a more complex sync flow for settlement status if it's stored in a cross-ref table with extra columns
     }
 
     override suspend fun settleAllForFriend(friendId: Long) {
