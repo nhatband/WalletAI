@@ -25,8 +25,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.wallet.manager.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wallet.manager.viewmodel.AuthViewModel
 
@@ -47,6 +49,7 @@ fun AuthScreen(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 2.dp,
             shadowElevation = 10.dp
         ) {
@@ -55,31 +58,31 @@ fun AuthScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Wallet AI",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
-                    text = "Minimal personal finance, synced to your account.",
+                    text = stringResource(R.string.auth_tagline),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 TabRow(selectedTabIndex = if (state.isRegister) 1 else 0) {
-                    Tab(selected = !state.isRegister, onClick = { vm.setMode(false) }, text = { Text("Login") })
-                    Tab(selected = state.isRegister, onClick = { vm.setMode(true) }, text = { Text("Register") })
+                    Tab(selected = !state.isRegister, onClick = { vm.setMode(false) }, text = { Text(stringResource(R.string.login)) })
+                    Tab(selected = state.isRegister, onClick = { vm.setMode(true) }, text = { Text(stringResource(R.string.register)) })
                 }
 
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = vm::onEmailChange,
-                    label = { Text("Email") },
+                    label = { Text(stringResource(R.string.email)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = vm::onPasswordChange,
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
@@ -89,7 +92,7 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = state.confirmPassword,
                         onValueChange = vm::onConfirmPasswordChange,
-                        label = { Text("Confirm password") },
+                        label = { Text(stringResource(R.string.confirm_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -115,16 +118,16 @@ fun AuthScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(18.dp))
-                            Text("Please wait")
+                            Text(stringResource(R.string.please_wait))
                         }
                     } else {
-                        Text(if (state.isRegister) "Create account" else "Sign in")
+                        Text(if (state.isRegister) stringResource(R.string.create_account) else stringResource(R.string.sign_in))
                     }
                 }
 
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = { vm.setMode(!state.isRegister) }) {
-                    Text(if (state.isRegister) "Already have an account?" else "Create a new account")
+                    Text(if (state.isRegister) stringResource(R.string.already_have_account) else stringResource(R.string.create_new_account))
                 }
             }
         }

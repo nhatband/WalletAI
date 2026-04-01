@@ -73,6 +73,20 @@
     <string name="push_local_to_cloud">Push local to cloud</string>
     <string name="cloud_sync_in_progress">Syncing data...</string>
     <string name="last_cloud_sync">Last cloud sync: %s</string>
+    <string name="account_title">Account</string>
+    <string name="not_signed_in">Not signed in</string>
+    <string name="sign_out">Sign out</string>
+    <string name="cloud_sync_auto_hint">Local changes are synced to cloud automatically. Use restore only when reinstalling or recovering this device.</string>
+    <string name="chat_empty_title">Financial chat</string>
+    <string name="chat_empty_desc">Ask about spending, debts, or let AI summarize your current finance picture.</string>
+    <string name="home_entries_count">%1$d entries in view</string>
+    <string name="shared_label">Shared</string>
+    <string name="camera_permission_granted">Permissions granted. Tap again to take a photo.</string>
+    <string name="camera_permission_required">Camera permission is required.</string>
+    <string name="unknown_label">Unknown</string>
+    <string name="ok">OK</string>
+    <string name="currency_unit">VND</string>
+    <string name="note_title">Note</string>
 
     <string name="add_friend">Add Friend</string>
     <string name="sync_contacts">Sync Contacts</string>
@@ -112,4 +126,21 @@
     <string name="from_to_date">From %1$s to %2$s</string>
     <string name="note_label">Note: %s</string>
     <string name="suat_format">%1$d shares (%2$s đ)</string>
+    <string name="auth_tagline">Elegant personal finance, synced privately to your account.</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="please_wait">Please wait</string>
+    <string name="create_account">Create account</string>
+    <string name="sign_in">Sign in</string>
+    <string name="already_have_account">Already have an account?</string>
+    <string name="create_new_account">Create a new account</string>
+    <string name="friend_detail_title">Debt details: %1$s</string>
+    <string name="no_related_expenses">No related expenses.</string>
+    <string name="friend_owes_me">They owe me</string>
+    <string name="i_owe_them">I owe them</string>
+    <string name="tap_to_add_photo">Tap to add photo</string>
+    <string name="home_empty_desc">Start with your first expense and keep every transaction in one calm place.</string>
 </resources>

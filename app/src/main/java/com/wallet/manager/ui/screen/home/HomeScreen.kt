@@ -52,6 +52,8 @@ import java.util.*
 
 private val vnLocale = Locale("vi", "VN")
 
+private fun formatCurrency(amount: Double): String = "${String.format(vnLocale, "%,.0f", amount)} đ"
+
 class ThousandSeparatorVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text
@@ -113,7 +115,7 @@ fun HomeScreen(
                 ),
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    Icon(Icons.Default.Menu, contentDescription = null)
                     }
                 }
             )
@@ -135,11 +137,16 @@ fun HomeScreen(
             }
         }
     ) { padding ->
+        val totalFiltered = remember(state.filteredExpenses) { state.filteredExpenses.sumOf { it.expense.amount } }
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
+            HomeOverviewCard(
+                totalAmount = totalFiltered,
+                entryCount = state.filteredExpenses.size
+            )
             SearchAndFilterHeader(
                 searchQuery = state.searchQuery,
                 onSearchChange = vm::onSearchQueryChange,
@@ -148,7 +155,7 @@ fun HomeScreen(
             )
 
             if (state.filteredExpenses.isEmpty()) {
-                EmptyState()
+                HomeEmptyState()
             } else {
                 ExpenseList(
                     items = state.filteredExpenses,
@@ -201,7 +208,7 @@ private fun SearchAndFilterHeader(
     )
     
     Surface(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.large
     ) {
@@ -237,11 +244,11 @@ private fun ExpenseList(
     onDeleteClick: (Expense) -> Unit
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(bottom = 88.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 96.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(items, key = { it.expense.id }) { item ->
-            ExpenseItem(
+            ExpenseListItemCard(
                 item = item,
                 onClick = { onItemClick(item) },
                 onEdit = { onEditClick(item) },
@@ -319,7 +326,7 @@ private fun ExpenseItem(
                         Spacer(Modifier.width(6.dp))
                         Icon(
                             Icons.Default.CheckCircle,
-                            contentDescription = "Done",
+                            contentDescription = null,
                             tint = Color(0xFF4CAF50),
                             modifier = Modifier.size(16.dp)
                         )
@@ -346,7 +353,7 @@ private fun ExpenseItem(
                 )
                 if (expense.isSplit) {
                     Text(
-                        text = "Shared",
+                        text = stringResource(R.string.shared_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -357,10 +364,10 @@ private fun ExpenseItem(
             
             Row {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
                 }
             }
         }
@@ -395,9 +402,9 @@ private fun ExpenseBottomSheet(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Toast.makeText(context, "Permissions granted. Click again to take photo.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.camera_permission_granted), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Camera permission required.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -462,7 +469,7 @@ private fun ExpenseBottomSheet(
                             )
                             
                             state.selectedFriendShares.forEach { (id, count) ->
-                                val friendName = state.allFriends.find { it.id == id }?.name ?: "Unknown"
+                                val friendName = state.allFriends.find { it.id == id }?.name ?: context.getString(R.string.unknown_label)
                                 ShareCounter(
                                     name = friendName,
                                     count = count,
@@ -774,7 +781,7 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
                 DetailRow(stringResource(R.string.amount), "${String.format(vnLocale, "%,.0f", expense.amount)} đ")
                 DetailRow(stringResource(R.string.expense_type), expense.type)
                 DetailRow(stringResource(R.string.date), dateFormat.format(Date(expense.date)))
-                if (expense.content.isNotEmpty()) DetailRow("Ghi chú", expense.content)
+                if (expense.content.isNotEmpty()) DetailRow(stringResource(R.string.note_title), expense.content)
                 
                 if (expense.isSplit) {
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -813,7 +820,7 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
                     Spacer(Modifier.height(8.dp))
                     AsyncImage(
                         model = expense.imageUri,
-                        contentDescription = "Bill image",
+                        contentDescription = stringResource(R.string.bill_image),
                         modifier = Modifier.fillMaxWidth().height(200.dp).clip(MaterialTheme.shapes.medium),
                         contentScale = ContentScale.Fit
                     )
@@ -843,5 +850,258 @@ private fun DetailRow(label: String, value: String) {
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun HomeHeroCard(
+    totalAmount: Double,
+    entryCount: Int
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primary
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.total_balance),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+            )
+            Text(
+                text = formatCurrency(totalAmount),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = stringResource(R.string.home_entries_count, entryCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeOverviewCard(
+    totalAmount: Double,
+    entryCount: Int
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.total_balance),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+            )
+            Text(
+                text = "${String.format(vnLocale, "%,.0f", totalAmount)} VND",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = stringResource(R.string.home_entries_count, entryCount),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseListItemCard(
+    item: ExpenseWithFriends,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val expense = item.expense
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val allSettled = item.friendCrossRefs.isNotEmpty() && item.friendCrossRefs.all { it.isSettled }
+    val icon = when (expense.type) {
+        stringResource(R.string.cat_food), "Food & Drinks" -> Icons.Default.Restaurant
+        stringResource(R.string.cat_transport), "Transport" -> Icons.Default.DirectionsCar
+        stringResource(R.string.cat_shopping), "Shopping" -> Icons.Default.ShoppingBag
+        stringResource(R.string.cat_entertainment), "Entertainment" -> Icons.Default.SportsEsports
+        stringResource(R.string.cat_study), "Study" -> Icons.Default.School
+        else -> Icons.Default.Category
+    }
+
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(
+                        color = if (allSettled) {
+                            Color(0xFF4CAF50).copy(alpha = 0.14f)
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (allSettled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = expense.title,
+                        modifier = Modifier.weight(1f, fill = false),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (allSettled) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = dateFormat.format(Date(expense.date)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(
+                modifier = Modifier.widthIn(min = 104.dp, max = 144.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "${String.format(vnLocale, "%,.0f", expense.amount)} VND",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (expense.isSplit) {
+                    Spacer(Modifier.height(4.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = stringResource(R.string.shared_label),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(6.dp))
+
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeEmptyState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        ElevatedCard(
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ReceiptLong,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.no_data),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.home_empty_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }

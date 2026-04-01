@@ -73,6 +73,20 @@
     <string name="push_local_to_cloud">Đẩy local lên cloud</string>
     <string name="cloud_sync_in_progress">Đang đồng bộ dữ liệu...</string>
     <string name="last_cloud_sync">Lần đồng bộ gần nhất: %s</string>
+    <string name="account_title">Tài khoản</string>
+    <string name="not_signed_in">Chưa đăng nhập</string>
+    <string name="sign_out">Đăng xuất</string>
+    <string name="cloud_sync_auto_hint">Dữ liệu local được đồng bộ lên cloud tự động. Chỉ dùng khôi phục khi cài lại app hoặc phục hồi thiết bị này.</string>
+    <string name="chat_empty_title">Trò chuyện tài chính</string>
+    <string name="chat_empty_desc">Hỏi về chi tiêu, nợ, hoặc nhờ AI tóm tắt nhanh tình hình tài chính của bạn.</string>
+    <string name="home_entries_count">%1$d khoản đang hiển thị</string>
+    <string name="shared_label">Chia sẻ</string>
+    <string name="camera_permission_granted">Đã cấp quyền. Nhấn lại để chụp ảnh.</string>
+    <string name="camera_permission_required">Cần cấp quyền camera để chụp ảnh.</string>
+    <string name="unknown_label">Không rõ</string>
+    <string name="ok">OK</string>
+    <string name="currency_unit">VNĐ</string>
+    <string name="note_title">Ghi chú</string>
 
     <string name="add_friend">Thêm bạn bè</string>
     <string name="sync_contacts">Đồng bộ danh bạ</string>
@@ -112,4 +126,21 @@
     <string name="from_to_date">Từ %1$s đến %2$s</string>
     <string name="note_label">Ghi chú: %s</string>
     <string name="suat_format">%1$d suất (%2$s đ)</string>
+    <string name="auth_tagline">Quáº£n lÃ½ chi tiÃªu tinh gá»n, Ä‘á»“ng bá»™ riÃªng tÆ° vá»›i tÃ i khoáº£n cá»§a báº¡n.</string>
+    <string name="login">ÄÄƒng nháº­p</string>
+    <string name="register">ÄÄƒng kÃ½</string>
+    <string name="email">Email</string>
+    <string name="password">Máº­t kháº©u</string>
+    <string name="confirm_password">XÃ¡c nháº­n máº­t kháº©u</string>
+    <string name="please_wait">Vui lÃ²ng chá»</string>
+    <string name="create_account">Táº¡o tÃ i khoáº£n</string>
+    <string name="sign_in">ÄÄƒng nháº­p</string>
+    <string name="already_have_account">ÄÃ£ cÃ³ tÃ i khoáº£n?</string>
+    <string name="create_new_account">Táº¡o tÃ i khoáº£n má»›i</string>
+    <string name="friend_detail_title">Chi tiáº¿t ná»£: %1$s</string>
+    <string name="no_related_expenses">KhÃ´ng cÃ³ khoáº£n chi liÃªn quan.</string>
+    <string name="friend_owes_me">Báº¡n cho ná»£</string>
+    <string name="i_owe_them">Báº¡n ná»£ há»</string>
+    <string name="tap_to_add_photo">Cháº¡m Ä‘á»ƒ thÃªm áº£nh</string>
+    <string name="home_empty_desc">Báº¯t Ä‘áº§u vá»›i khoáº£n chi Ä‘áº§u tiÃªn Ä‘á»ƒ lÆ°u láº¡i má»i giao dá»‹ch trong má»™t khÃ´ng gian gá»n gÃ ng.</string>
 </resources>

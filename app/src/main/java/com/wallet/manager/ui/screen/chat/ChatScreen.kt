@@ -98,9 +98,9 @@ fun ChatScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(36.dp)
                             )
-                            Text("Trò chuyện tài chính", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.chat_empty_title), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                text = "Hỏi về chi tiêu, nợ, hoặc nhờ AI tóm tắt tình hình tài chính của bạn.",
+                                text = stringResource(R.string.chat_empty_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
