@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.wallet.manager.data.prefs.SettingsDataStore
+import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.secure.SecurePrefsManager
 import com.wallet.manager.ui.navigation.AppDestination
@@ -38,6 +39,7 @@ import com.wallet.manager.ui.navigation.WalletApp
 import com.wallet.manager.ui.screen.auth.AuthScreen
 import com.wallet.manager.ui.theme.WalletTheme
 import com.wallet.manager.viewmodel.AppLanguage
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -76,12 +78,24 @@ class MainActivity : AppCompatActivity() {
             }
 
             var isAppLocked by remember { mutableStateOf(false) }
+            var isBootstrapLoading by remember { mutableStateOf(true) }
             val composeScope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
-                runCatching {
-                    SupabaseRestoreManager.restoreIfLocalEmpty(applicationContext)
+                if (settings.isSignedInFlow.first() && SupabaseConfig.client.auth.currentSessionOrNull() == null) {
+                    SupabaseRestoreManager.clearLocalData(applicationContext)
+                    settings.clearSignedIn()
+                    settings.resetCloudRestoreState()
                 }
+
+                runCatching {
+                    if (settings.isSignedInFlow.first()) {
+                        SupabaseRestoreManager.refreshForSignedInUser(applicationContext)
+                    } else {
+                        SupabaseRestoreManager.clearLocalData(applicationContext)
+                    }
+                }
+                isBootstrapLoading = false
 
                 if (settings.requirePasscodeFlow.first()) {
                     isAppLocked = true
@@ -103,8 +117,8 @@ class MainActivity : AppCompatActivity() {
                 key(language) {
                     WalletTheme(darkTheme = darkTheme) {
                         Surface(modifier = Modifier.fillMaxSize()) {
-                            when (isSignedIn) {
-                                null -> {
+                            when {
+                                isBootstrapLoading || isSignedIn == null -> {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
@@ -112,10 +126,10 @@ class MainActivity : AppCompatActivity() {
                                         CircularProgressIndicator()
                                     }
                                 }
-                                false -> {
-                                AuthScreen()
+                                isSignedIn == false -> {
+                                    AuthScreen()
                                 }
-                                true -> {
+                                else -> {
                                     val navController = rememberNavController()
                                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 

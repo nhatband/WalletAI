@@ -1,47 +1,198 @@
-# Ví Thông Minh AI (Wallet AI)
+# Ví Thông Minh
 
-## 🌟 Giới thiệu tổng quan
-**Ví Thông Minh AI** là một ứng dụng quản lý tài chính cá nhân hiện đại, tích hợp trí tuệ nhân tạo (Gemini AI) để giúp người dùng theo dõi thu chi một cách thông minh và tiện lợi nhất. Ứng dụng không chỉ dừng lại ở việc ghi chép thủ công mà còn có khả năng tự động phân tích hóa đơn qua hình ảnh và hỗ trợ giải đáp thắc mắc về tài chính thông qua Chatbot.
+<p align="center">
+  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" alt="Ví Thông Minh" width="120" />
+</p>
 
-## ✨ Các tính năng chính
-1.  **Quản lý chi tiêu:** Thêm, sửa, xóa các khoản chi tiêu hàng ngày với các danh mục phân loại rõ ràng (Ăn uống, Di chuyển, Mua sắm...).
-2.  **Phân tích hóa đơn bằng AI:** Sử dụng camera hoặc chọn ảnh từ thư viện, AI sẽ tự động trích xuất thông tin như tiêu đề, số tiền, ngày tháng và loại chi tiêu từ hóa đơn.
-3.  **Chia sẻ chi phí (Split Bill):** Tính năng chia tiền với bạn bè mạnh mẽ. Hỗ trợ chia theo số suất, chọn người trả tiền và theo dõi trạng thái thanh toán nợ.
-4.  **Thống kê chuyên sâu:** Biểu đồ tròn (tỉ lệ theo loại) và biểu đồ cột (chi tiêu hàng ngày) giúp bạn cái nhìn tổng quan về tình hình tài chính. Hỗ trợ lọc theo Ngày, Tuần, Tháng, Năm hoặc Khoảng thời gian tùy chỉnh.
-5.  **Quản lý nợ:** Theo dõi chi tiết ai đang nợ bạn và bạn đang nợ ai từ các khoản chi tiêu chung.
-6.  **Chatbot Trợ lý Tài chính:** Hỏi đáp trực tiếp với AI về thói quen chi tiêu của bạn, nhờ AI tóm tắt tình hình nợ nần hoặc tư vấn tiết kiệm.
-7.  **Bảo mật:** Bảo vệ dữ liệu bằng mã PIN (Passcode) 6 số và xác thực sinh trắc học (Vân tay/Khuôn mặt).
-8.  **Đa ngôn ngữ:** Hỗ trợ hoàn toàn tiếng Việt và tiếng Anh.
+<p align="center">
+  Ứng dụng Android quản lý chi tiêu cá nhân, chia tiền, theo dõi thẻ tín dụng và hỗ trợ AI.
+</p>
 
-## 🔄 Luồng hoạt động
-1.  **Nhập liệu:** Người dùng nhập thủ công hoặc chụp ảnh hóa đơn -> AI xử lý dữ liệu -> Người dùng xác nhận và lưu.
-2.  **Chia tiền:** Nếu chi tiêu chung, người dùng chọn bạn bè tham gia -> Thiết lập số suất -> AI tính toán số tiền mỗi người phải chịu.
-3.  **Lưu trữ:** Dữ liệu được lưu trữ cục bộ (Local Database - Room) để đảm bảo tốc độ và quyền riêng tư. API Key được lưu an toàn trong EncryptedSharedPreferences.
-4.  **Phân tích & Chat:** Khi người dùng mở màn hình Thống kê hoặc Chat, ứng dụng sẽ lấy dữ liệu từ DB, tính toán các chỉ số nợ/chi tiêu và gửi ngữ cảnh cho Gemini AI để trả lời các câu hỏi phức tạp.
+## Giới thiệu
 
-## 🖼️ Ảnh minh hoạ
-*(Lưu ý: Thay thế các đường dẫn dưới đây bằng ảnh thực tế của ứng dụng)*
-- **Màn hình chính:** `[Link ảnh hoặc path: docs/screenshots/home.png]`
-- **Thống kê:** `[Link ảnh hoặc path: docs/screenshots/stats.png]`
-- **Chat với AI:** `[Link ảnh hoặc path: docs/screenshots/chat.png]`
-- **Phân tích Bill:** `[Link ảnh hoặc path: docs/screenshots/ai_scan.png]`
+**Ví Thông Minh** là ứng dụng Android được xây dựng bằng Kotlin và Jetpack Compose, tập trung vào trải nghiệm quản lý tài chính cá nhân hiện đại và đồng bộ theo tài khoản người dùng.
 
-## 🛠️ Cách triển khai, cập nhật và sửa lỗi
+Phiên bản hiện tại của dự án đang đi theo hướng:
 
-### Cách triển khai (Setup)
-1.  **Yêu cầu:** Android Studio Koala+, JDK 17, Android SDK 34+.
-2.  **Clone dự án:** `git clone <repository_url>`
-3.  **Cấu hình API Key:**
-    - Truy cập [Google AI Studio](https://aistudio.google.com/) để lấy Gemini API Key.
-    - Mở ứng dụng, vào phần **Cài đặt** và dán API Key vào.
-4.  **Build:** Nhấn `Sync Project with Gradle Files` và chạy ứng dụng trên máy ảo hoặc thiết bị thật.
+- **Supabase là nguồn dữ liệu chính**
+- **Room chỉ còn là lớp cache tạm cho UI**
+- Khi mở app:
+  - nếu không có session hợp lệ, cache local sẽ bị xóa
+  - nếu có session hợp lệ, cache local sẽ bị xóa và nạp lại từ cloud
 
-### Cập nhật (Update)
-- Để cập nhật phiên bản mới nhất, hãy thực hiện `git pull origin main`.
-- Nếu có sự thay đổi về cấu trúc Database, Room sẽ tự động thực hiện Migration (đã được cấu hình trong `AppDatabase`).
+Mục tiêu của kiến trúc này là tránh việc dữ liệu cũ từ local hiển thị sai khi người dùng đổi tài khoản, đăng xuất hoặc cài lại ứng dụng.
 
-### Sửa lỗi (Troubleshooting)
-- **Lỗi "Cause: zip END header not found":** Do file Gradle tải về bị lỗi. Xóa thư mục `.gradle` trong `User` và Sync lại.
-- **AI không phản hồi:** Kiểm tra lại API Key trong phần Cài đặt và đảm bảo thiết bị có kết nối Internet.
-- **Lỗi crash khi chọn ngày:** Đã được khắc phục bằng cách sử dụng `Material3 DateRangePicker` bản địa của Compose thay vì `DatePickerDialog` cũ.
-- **Ngôn ngữ không chuyển hết:** Đảm bảo tất cả các chuỗi text đều sử dụng `stringResource(R.string...)` thay vì viết cứng. Kiểm tra cả 2 file `strings.xml` (vi) và `values-en/strings.xml` (en).
+## Ảnh minh họa
+
+Hiện trong repository mới có ảnh icon ứng dụng:
+
+![Icon ứng dụng](app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp)
+
+Bạn có thể bổ sung thêm ảnh chụp màn hình vào thư mục `docs/screenshots/` và chèn tiếp vào README theo các mục:
+
+- Trang chủ
+- Thống kê
+- Bạn bè
+- Thẻ tín dụng
+- Chat AI
+- Cài đặt
+
+## Tính năng chính
+
+- Quản lý thu chi: thêm, sửa, xóa giao dịch theo nhóm như ăn uống, di chuyển, mua sắm.
+- Chia tiền với bạn bè: gắn bạn bè vào giao dịch, chia theo số suất, theo dõi trạng thái thanh toán.
+- Quản lý nợ: tổng hợp ai đang nợ bạn và bạn đang nợ ai.
+- Thẻ tín dụng: khai báo thẻ, gắn giao dịch với thẻ, theo dõi số tiền đến kỳ cần thanh toán.
+- Thống kê chi tiêu: xem tổng quan theo ngày, tuần, tháng, năm.
+- Chat AI: hỏi đáp về chi tiêu, nợ/chia tiền và giao dịch thẻ tín dụng.
+- Quét hóa đơn bằng AI: nhận diện thông tin hóa đơn từ ảnh để điền nhanh giao dịch.
+- Bảo mật: hỗ trợ PIN 6 số và sinh trắc học.
+- Đa ngôn ngữ: hỗ trợ tiếng Việt và tiếng Anh.
+
+## Công nghệ sử dụng
+
+- Kotlin
+- Jetpack Compose
+- Material 3
+- Room
+- DataStore
+- EncryptedSharedPreferences
+- Supabase Auth, PostgREST, Realtime
+- Ktor
+- CameraX
+
+## Kiến trúc dự án
+
+Luồng chính của app:
+
+`UI -> ViewModel -> Repository -> Supabase / Room`
+
+Ý nghĩa thực tế trong phiên bản hiện tại:
+
+- UI đọc dữ liệu từ `Flow`
+- ViewModel điều phối trạng thái màn hình
+- Repository kết nối giữa UI và tầng dữ liệu
+- Supabase là nguồn dữ liệu chính để đồng bộ theo tài khoản
+- Room được giữ lại để làm cache tạm, chưa bị loại bỏ hoàn toàn khỏi codebase
+
+## Các màn hình chính
+
+- `Home`: danh sách giao dịch, tìm kiếm, lọc, thêm chi tiêu
+- `Stats`: thống kê và tổng hợp chi tiêu
+- `Friends`: danh sách bạn bè và các khoản chia tiền
+- `Credit Cards`: quản lý thẻ tín dụng và giao dịch theo thẻ
+- `Chat`: chatbot AI về tài chính cá nhân
+- `Settings`: giao diện, ngôn ngữ, bảo mật, cloud sync, tài khoản
+- `Auth`: đăng nhập và đăng ký
+
+## Cấu hình môi trường
+
+Yêu cầu:
+
+- Android Studio bản mới
+- JDK 11 trở lên
+- Android SDK 24 trở lên
+
+Thông số hiện tại của dự án:
+
+- `compileSdk = 36`
+- `minSdk = 24`
+- `targetSdk = 36`
+- Kotlin `2.1.0`
+- AGP `8.9.1`
+
+## Chạy dự án
+
+1. Clone repository.
+2. Mở project bằng Android Studio.
+3. Sync Gradle.
+4. Build và chạy app trên emulator hoặc thiết bị thật.
+
+Lệnh build debug:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+```
+
+## Supabase
+
+Ứng dụng đang dùng Supabase cho các chức năng:
+
+- Đăng nhập / đăng ký
+- Đồng bộ dữ liệu người dùng
+- Khôi phục dữ liệu khi đăng nhập lại hoặc cài lại app
+
+Các file liên quan:
+
+- [SupabaseConfig.kt](/C:/Users/nhatb/Downloads/LamViec/WalletAI/app/src/main/java/com/wallet/manager/data/remote/supabase/SupabaseConfig.kt)
+- [SupabaseService.kt](/C:/Users/nhatb/Downloads/LamViec/WalletAI/app/src/main/java/com/wallet/manager/data/remote/supabase/SupabaseService.kt)
+- [SupabaseRestoreManager.kt](/C:/Users/nhatb/Downloads/LamViec/WalletAI/app/src/main/java/com/wallet/manager/data/remote/supabase/SupabaseRestoreManager.kt)
+- [supabase_rls_policies.sql](/C:/Users/nhatb/Downloads/LamViec/WalletAI/supabase_rls_policies.sql)
+
+Lưu ý quan trọng:
+
+- Cần cấu hình RLS đúng trên Supabase.
+- Dữ liệu phải gắn với `user_id`.
+- Policy cần kiểm tra theo `auth.uid()`.
+- Nếu policy cấu hình sai, người dùng có thể nhìn thấy dữ liệu của tài khoản khác.
+
+## AI
+
+AI hiện được dùng cho hai nhóm tính năng chính:
+
+- Quét hóa đơn từ ảnh
+- Chatbot tài chính
+
+API key Gemini được nhập trong màn hình `Settings` và lưu an toàn bằng `EncryptedSharedPreferences`.
+
+## Cloud Sync
+
+Hành vi hiện tại:
+
+- Đăng nhập thành công: xóa cache local và nạp lại từ cloud
+- Đăng xuất: xóa cache local
+- Mở app khi có session: làm mới cache từ cloud
+- Mở app khi không có session: xóa cache local
+
+Thiết kế này giúp local DB không còn đóng vai trò nguồn dữ liệu chính.
+
+## Cấu trúc thư mục
+
+```text
+app/
+  src/main/java/com/wallet/manager/
+    ai/
+    data/
+      local/
+      mapper/
+      prefs/
+      remote/
+      repository/
+      secure/
+    ui/
+    viewmodel/
+```
+
+## Lưu ý khi phát triển
+
+- UI được viết bằng Compose.
+- Một số màn hình vẫn đang đọc dữ liệu qua `Flow` của Room.
+- Nếu muốn bỏ hoàn toàn local DB, cần viết lại repository và ViewModel theo hướng gọi Supabase trực tiếp.
+
+## Trạng thái hiện tại
+
+Dự án đang trong giai đoạn chuyển từ mô hình **local-first** sang **cloud-first**.
+
+Đã hoàn thành:
+
+- Auth bằng Supabase
+- Sync `expenses`, `friends`, `expense_friend_cross_ref`, `credit_cards`
+- Restore dữ liệu từ cloud
+- Màn hình đăng nhập / đăng ký
+- Quản lý thẻ tín dụng
+
+Đang cần tiếp tục:
+
+- Hoàn thiện dữ liệu `user_id` cho toàn bộ dữ liệu cũ trên Supabase
+- Giảm phụ thuộc vào Room trong repository
+- Bổ sung test cho auth, sync và restore

@@ -11,10 +11,10 @@ import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -54,44 +54,61 @@ class AuthViewModel(
     fun submit() {
         val state = _uiState.value
         if (state.email.isBlank() || state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Please fill in email and password.") }
+            _uiState.update { it.copy(errorMessage = "Vui lòng nhập email và mật khẩu.") }
             return
         }
         if (state.isRegister && state.password != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "Password confirmation does not match.") }
+            _uiState.update { it.copy(errorMessage = "Mật khẩu xác nhận không khớp.") }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             runCatching {
-                var email = state.email.trim()
+                val trimmedEmail = state.email.trim()
                 val previousEmail = settings.signedInEmailFlow.first()
 
                 if (state.isRegister) {
                     SupabaseConfig.client.auth.signUpWith(Email) {
-                        email = email
+                        email = trimmedEmail
                         password = state.password
                     }
                 } else {
                     SupabaseConfig.client.auth.signInWith(Email) {
-                        email = email
+                        email = trimmedEmail
                         password = state.password
                     }
                 }
-                if (previousEmail != null && previousEmail != email) {
+
+                if (SupabaseConfig.client.auth.currentSessionOrNull() == null) {
+                    throw IllegalStateException(
+                        "Phiên đăng nhập chưa được tạo. Có thể Supabase đang yêu cầu xác nhận email trước khi đăng nhập."
+                    )
+                }
+
+                if (previousEmail != null && previousEmail != trimmedEmail) {
                     SupabaseRestoreManager.clearLocalData(getApplication())
                 }
+
                 settings.resetCloudRestoreState()
-                settings.setSignedIn(email)
-                runCatching {
-                    SupabaseRestoreManager.restoreFromCloud(getApplication(), onlyWhenLocalEmpty = true)
-                }
+                settings.setSignedIn(trimmedEmail)
+                runCatching { SupabaseRestoreManager.refreshForSignedInUser(getApplication()) }
             }.onFailure { throwable ->
+                val friendlyMessage = when {
+                    throwable.message?.contains("Anonymous sign-ins are disabled", ignoreCase = true) == true ->
+                        "Supabase đang hiểu request đăng ký sai kiểu xác thực. Hãy thử lại sau khi build bản mới."
+                    throwable.message?.contains("Phiên đăng nhập chưa được tạo", ignoreCase = true) == true ->
+                        "Tài khoản có thể đã tạo nhưng chưa có session đăng nhập. Hãy kiểm tra cấu hình xác nhận email trong Supabase Auth."
+                    throwable.message?.contains("User already registered", ignoreCase = true) == true ->
+                        "Email này đã được đăng ký."
+                    throwable.message?.contains("Invalid login credentials", ignoreCase = true) == true ->
+                        "Email hoặc mật khẩu không đúng."
+                    else -> throwable.message ?: "Xác thực thất bại."
+                }
                 _uiState.update {
                     it.copy(
                         isSubmitting = false,
-                        errorMessage = throwable.message ?: "Authentication failed."
+                        errorMessage = friendlyMessage
                     )
                 }
             }.onSuccess {

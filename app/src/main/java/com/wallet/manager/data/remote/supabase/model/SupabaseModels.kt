@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ExpenseDto(
     val id: Long? = null,
+    val user_id: String? = null,
     val type: String,
     val title: String,
     val content: String,
@@ -22,6 +23,7 @@ data class ExpenseDto(
 @Serializable
 data class FriendDto(
     val id: Long? = null,
+    val user_id: String? = null,
     val name: String,
     val phone_number: String? = null,
     val image_uri: String? = null,
@@ -40,6 +42,7 @@ data class ExpenseFriendDto(
 @Serializable
 data class CreditCardDto(
     val id: Long? = null,
+    val user_id: String? = null,
     val name: String,
     val holder_name: String,
     val last4_digits: String,

@@ -4,6 +4,7 @@ import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
 import com.wallet.manager.data.local.entity.Friend
+import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.remote.supabase.model.CreditCardDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseFriendDto
@@ -11,6 +12,7 @@ import com.wallet.manager.data.remote.supabase.model.FriendDto
 
 fun Expense.toDto() = ExpenseDto(
     id = if (id == 0L) null else id,
+    user_id = SupabaseConfig.currentUserId(),
     type = type,
     title = title,
     content = content,
@@ -27,6 +29,7 @@ fun Expense.toDto() = ExpenseDto(
 
 fun Friend.toDto() = FriendDto(
     id = if (id == 0L) null else id,
+    user_id = SupabaseConfig.currentUserId(),
     name = name,
     phone_number = phoneNumber,
     image_uri = imageUri,
@@ -36,6 +39,7 @@ fun Friend.toDto() = FriendDto(
 
 fun CreditCard.toDto() = CreditCardDto(
     id = if (id == 0L) null else id,
+    user_id = SupabaseConfig.currentUserId(),
     name = name,
     holder_name = holderName,
     last4_digits = last4Digits,

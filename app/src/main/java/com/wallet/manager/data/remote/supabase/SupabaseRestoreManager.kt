@@ -22,6 +22,23 @@ object SupabaseRestoreManager {
         }
     }
 
+    suspend fun refreshForSignedInUser(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val settings = SettingsDataStore(context)
+        val isSignedIn = settings.isSignedInFlow.first()
+        if (!isSignedIn) {
+            clearLocalData(context)
+            return@withContext false
+        }
+
+        clearLocalData(context)
+        val restored = restoreFromCloud(context, onlyWhenLocalEmpty = false)
+        settings.setAutoRestoreDone(true)
+        if (restored) {
+            settings.setLastCloudSyncAt(System.currentTimeMillis())
+        }
+        restored
+    }
+
     suspend fun restoreIfLocalEmpty(context: Context) = withContext(Dispatchers.IO) {
         val settings = SettingsDataStore(context)
         val isSignedIn = settings.isSignedInFlow.first()
@@ -53,7 +70,9 @@ object SupabaseRestoreManager {
         val remoteCreditCards = service.fetchCreditCards()
         val remoteFriends = service.fetchFriends()
         val remoteExpenses = service.fetchExpenses()
+        val expenseIds = remoteExpenses.mapNotNull { it.id }.toSet()
         val remoteCrossRefs = service.fetchExpenseFriendCrossRefs()
+            .filter { it.expense_id in expenseIds }
 
         if (remoteCreditCards.isEmpty() && remoteFriends.isEmpty() && remoteExpenses.isEmpty() && remoteCrossRefs.isEmpty()) {
             return@withContext false

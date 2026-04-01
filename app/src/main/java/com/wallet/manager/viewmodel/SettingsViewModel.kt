@@ -11,6 +11,7 @@ import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.secure.SecurePrefsManager
 import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -222,8 +223,13 @@ class SettingsViewModel(
         viewModelScope.launch {
             _isCloudSyncing.value = true
             _cloudSyncMessage.value = null
+            if (SupabaseConfig.client.auth.currentSessionOrNull() == null) {
+                _cloudSyncMessage.value = "Bạn chưa có phiên đăng nhập Supabase hợp lệ. Hãy đăng nhập lại trước khi khôi phục."
+                _isCloudSyncing.value = false
+                return@launch
+            }
             val restored = runCatching {
-                SupabaseRestoreManager.restoreFromCloud(application.applicationContext)
+                SupabaseRestoreManager.refreshForSignedInUser(application.applicationContext)
             }.getOrElse {
                 _cloudSyncMessage.value = it.message ?: "Cloud restore failed"
                 _isCloudSyncing.value = false

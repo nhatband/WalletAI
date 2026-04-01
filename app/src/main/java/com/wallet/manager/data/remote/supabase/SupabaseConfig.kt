@@ -22,4 +22,9 @@ object SupabaseConfig {
             throw IllegalStateException("No authenticated Supabase session")
         }
     }
+
+    fun currentUserId(): String {
+        return client.auth.currentSessionOrNull()?.user?.id
+            ?: throw IllegalStateException("No authenticated Supabase user")
+    }
 }

@@ -72,12 +72,20 @@ class SupabaseService {
 
     suspend fun fetchFriends(): List<FriendDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
-        client.postgrest["friends"].select().decodeList<FriendDto>()
+        client.postgrest["friends"].select {
+            filter {
+                eq("user_id", SupabaseConfig.currentUserId())
+            }
+        }.decodeList<FriendDto>()
     }
 
     suspend fun fetchExpenses(): List<ExpenseDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
-        client.postgrest["expenses"].select().decodeList<ExpenseDto>()
+        client.postgrest["expenses"].select {
+            filter {
+                eq("user_id", SupabaseConfig.currentUserId())
+            }
+        }.decodeList<ExpenseDto>()
     }
 
     suspend fun fetchExpenseFriendCrossRefs(): List<ExpenseFriendDto> = withContext(Dispatchers.IO) {
@@ -87,6 +95,10 @@ class SupabaseService {
 
     suspend fun fetchCreditCards(): List<CreditCardDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
-        client.postgrest["credit_cards"].select().decodeList<CreditCardDto>()
+        client.postgrest["credit_cards"].select {
+            filter {
+                eq("user_id", SupabaseConfig.currentUserId())
+            }
+        }.decodeList<CreditCardDto>()
     }
 }
