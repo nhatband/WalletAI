@@ -82,17 +82,17 @@ class MainActivity : AppCompatActivity() {
             val composeScope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
-                if (settings.isSignedInFlow.first() && SupabaseConfig.client.auth.currentSessionOrNull() == null) {
-                    SupabaseRestoreManager.clearLocalData(applicationContext)
-                    settings.clearSignedIn()
-                    settings.resetCloudRestoreState()
-                }
+                val hasSavedSignIn = settings.isSignedInFlow.first()
+                val hasSupabaseSession = SupabaseConfig.client.auth.currentSessionOrNull() != null
 
                 runCatching {
-                    if (settings.isSignedInFlow.first()) {
-                        SupabaseRestoreManager.refreshForSignedInUser(applicationContext)
-                    } else {
-                        SupabaseRestoreManager.clearLocalData(applicationContext)
+                    when {
+                        hasSavedSignIn && hasSupabaseSession -> {
+                            SupabaseRestoreManager.refreshForSignedInUser(applicationContext)
+                        }
+                        !hasSavedSignIn -> {
+                            SupabaseRestoreManager.clearLocalData(applicationContext)
+                        }
                     }
                 }
                 isBootstrapLoading = false
