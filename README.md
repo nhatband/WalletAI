@@ -1,7 +1,7 @@
 # Ví Thông Minh
 
 <p align="center">
-  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" alt="Ví Thông Minh" width="120" />
+  <img src="app/src/main/res/drawable/image_0.jpg" alt="Ví Thông Minh" width="320" />
 </p>
 
 <p align="center">
@@ -24,18 +24,7 @@ Mục tiêu của kiến trúc này là tránh việc dữ liệu cũ từ local
 
 ## Ảnh minh họa
 
-Hiện trong repository mới có ảnh icon ứng dụng:
-
-![Icon ứng dụng](app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp)
-
-Bạn có thể bổ sung thêm ảnh chụp màn hình vào thư mục `docs/screenshots/` và chèn tiếp vào README theo các mục:
-
-- Trang chủ
-- Thống kê
-- Bạn bè
-- Thẻ tín dụng
-- Chat AI
-- Cài đặt
+![Ảnh minh họa ứng dụng](app/src/main/res/drawable/image_0.jpg)
 
 ## Tính năng chính
 
