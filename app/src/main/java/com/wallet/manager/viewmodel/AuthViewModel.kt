@@ -65,7 +65,7 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             runCatching {
-                val email = state.email.trim()
+                var email = state.email.trim()
                 val previousEmail = settings.signedInEmailFlow.first()
 
                 if (state.isRegister) {
