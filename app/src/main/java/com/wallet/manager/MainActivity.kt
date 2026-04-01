@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val darkTheme by settings.darkThemeFlow.collectAsState(initial = false)
             val language by settings.languageFlow.collectAsState(initial = AppLanguage.VI)
-            val isSignedIn by settings.isSignedInFlow.collectAsState(initial = false)
+            val isSignedIn by settings.isSignedInFlow.collectAsState(initial = null as Boolean?)
             
             val locale = remember(language) { 
                 if (language == AppLanguage.EN) Locale.US else Locale("vi", "VN")
@@ -103,28 +103,39 @@ class MainActivity : AppCompatActivity() {
                 key(language) {
                     WalletTheme(darkTheme = darkTheme) {
                         Surface(modifier = Modifier.fillMaxSize()) {
-                            if (!isSignedIn) {
-                                AuthScreen()
-                            } else {
-                                val navController = rememberNavController()
-                                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-
-                                WalletApp(
-                                    navController = navController,
-                                    drawerState = drawerState,
-                                    onNavigate = { dest ->
-                                        composeScope.launch {
-                                            drawerState.close()
-                                            navController.navigate(dest.route) {
-                                                launchSingleTop = true
-                                                popUpTo(AppDestination.HOME.route)
-                                            }
-                                        }
-                                    },
-                                    onOpenDrawer = {
-                                        composeScope.launch { drawerState.open() }
+                            when (isSignedIn) {
+                                null -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
                                     }
-                                )
+                                }
+                                false -> {
+                                AuthScreen()
+                                }
+                                true -> {
+                                    val navController = rememberNavController()
+                                    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+                                    WalletApp(
+                                        navController = navController,
+                                        drawerState = drawerState,
+                                        onNavigate = { dest ->
+                                            composeScope.launch {
+                                                drawerState.close()
+                                                navController.navigate(dest.route) {
+                                                    launchSingleTop = true
+                                                    popUpTo(AppDestination.HOME.route)
+                                                }
+                                            }
+                                        },
+                                        onOpenDrawer = {
+                                            composeScope.launch { drawerState.open() }
+                                        }
+                                    )
+                                }
                             }
 
                             if (isAppLocked) {

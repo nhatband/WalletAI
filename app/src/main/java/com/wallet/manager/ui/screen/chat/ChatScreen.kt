@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -73,17 +75,51 @@ fun ChatScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                reverseLayout = true,
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(state.messages.reversed()) { msg ->
-                    ChatBubble(message = msg)
-                    Spacer(Modifier.height(8.dp))
+            if (state.messages.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(28.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Forum,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text("Trò chuyện tài chính", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = "Hỏi về chi tiêu, nợ, hoặc nhờ AI tóm tắt tình hình tài chính của bạn.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    reverseLayout = true,
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    items(state.messages.reversed()) { msg ->
+                        ChatBubble(message = msg)
+                        Spacer(Modifier.height(10.dp))
+                    }
                 }
             }
 
@@ -109,7 +145,8 @@ fun ChatScreen(
                         onValueChange = vm::onInputChange,
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(stringResource(R.string.ask_placeholder)) },
-                        maxLines = 4
+                        maxLines = 4,
+                        shape = RoundedCornerShape(22.dp)
                     )
                     Spacer(Modifier.width(8.dp))
                     IconButton(
@@ -146,7 +183,8 @@ private fun ChatBubble(message: ChatMessage) {
         Surface(
             color = bg,
             shape = shape,
-            tonalElevation = 1.dp
+            tonalElevation = 1.dp,
+            modifier = Modifier.widthIn(max = 320.dp)
         ) {
             SelectionContainer {
                 if (isUser) {

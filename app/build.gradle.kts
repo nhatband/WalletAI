@@ -98,9 +98,6 @@ dependencies {
     // Coil
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Google AI Client SDK (Gemini)
-    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-
     // Vico chart
     implementation("com.patrykandpatrick.vico:compose:2.0.0")
     implementation("com.patrykandpatrick.vico:core:2.0.0")
