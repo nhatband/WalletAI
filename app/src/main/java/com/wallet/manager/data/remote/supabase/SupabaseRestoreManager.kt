@@ -3,38 +3,44 @@ package com.wallet.manager.data.remote.supabase
 import android.content.Context
 import androidx.room.withTransaction
 import com.wallet.manager.data.local.db.AppDatabase
+import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
 import com.wallet.manager.data.mapper.toEntity
+import com.wallet.manager.data.prefs.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 object SupabaseRestoreManager {
     suspend fun restoreIfLocalEmpty(context: Context) = withContext(Dispatchers.IO) {
+        val settings = SettingsDataStore(context)
+        val autoRestoreDone = settings.autoRestoreDoneFlow.first()
+        if (autoRestoreDone) return@withContext
+
+        val restored = restoreFromCloud(context, onlyWhenLocalEmpty = true)
+        settings.setAutoRestoreDone(true)
+        if (restored) {
+            settings.setLastCloudSyncAt(System.currentTimeMillis())
+        }
+    }
+
+    suspend fun restoreFromCloud(
+        context: Context,
+        onlyWhenLocalEmpty: Boolean = false
+    ): Boolean = withContext(Dispatchers.IO) {
         val db = AppDatabase.get(context)
         val expenseDao = db.expenseDao()
         val friendDao = db.friendDao()
 
         val hasLocalData = expenseDao.getExpenseCount() > 0 || friendDao.getFriendCount() > 0
-        if (hasLocalData) return@withContext
+        if (onlyWhenLocalEmpty && hasLocalData) return@withContext false
 
         val service = SupabaseService()
-        val remoteFriends = try {
-            service.fetchFriends()
-        } catch (_: Throwable) {
-            emptyList()
-        }
-        val remoteExpenses = try {
-            service.fetchExpenses()
-        } catch (_: Throwable) {
-            emptyList()
-        }
-        val remoteCrossRefs = try {
-            service.fetchExpenseFriendCrossRefs()
-        } catch (_: Throwable) {
-            emptyList()
-        }
+        val remoteFriends = service.fetchFriends()
+        val remoteExpenses = service.fetchExpenses()
+        val remoteCrossRefs = service.fetchExpenseFriendCrossRefs()
 
         if (remoteFriends.isEmpty() && remoteExpenses.isEmpty() && remoteCrossRefs.isEmpty()) {
-            return@withContext
+            return@withContext false
         }
 
         db.withTransaction {
@@ -52,5 +58,37 @@ object SupabaseRestoreManager {
                 expenseDao.insertFriendCrossRefs(remoteCrossRefs.map { it.toEntity() })
             }
         }
+        true
+    }
+
+    suspend fun pushLocalToCloud(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val db = AppDatabase.get(context)
+        val expenseDao = db.expenseDao()
+        val friendDao = db.friendDao()
+        val service = SupabaseService()
+
+        val friends = friendDao.getAllFriendsList()
+        val expenses = expenseDao.getAllExpensesList()
+        val crossRefs = expenseDao.getAllFriendCrossRefsList()
+
+        if (friends.isEmpty() && expenses.isEmpty() && crossRefs.isEmpty()) {
+            return@withContext false
+        }
+
+        friends.forEach { friend ->
+            service.syncFriend(friend)
+        }
+        expenses.forEach { expense ->
+            service.syncExpense(expense)
+        }
+        crossRefs.forEach { crossRef: ExpenseFriendCrossRef ->
+            service.syncExpenseFriendCrossRef(
+                expenseId = crossRef.expenseId,
+                friendId = crossRef.friendId,
+                shareCount = crossRef.shareCount,
+                isSettled = crossRef.isSettled
+            )
+        }
+        true
     }
 }

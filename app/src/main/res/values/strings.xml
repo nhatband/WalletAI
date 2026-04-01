@@ -68,6 +68,11 @@
     <string name="security_sub">Xác thực bảo mật</string>
     <string name="vietnamese">Tiếng Việt</string>
     <string name="english">Tiếng Anh</string>
+    <string name="cloud_sync_title">Đồng bộ cloud</string>
+    <string name="restore_from_cloud">Khôi phục từ cloud</string>
+    <string name="push_local_to_cloud">Đẩy local lên cloud</string>
+    <string name="cloud_sync_in_progress">Đang đồng bộ dữ liệu...</string>
+    <string name="last_cloud_sync">Lần đồng bộ gần nhất: %s</string>
 
     <string name="add_friend">Thêm bạn bè</string>
     <string name="sync_contacts">Đồng bộ danh bạ</string>

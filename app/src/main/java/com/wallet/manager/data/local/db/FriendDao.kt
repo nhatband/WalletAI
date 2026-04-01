@@ -12,6 +12,9 @@ interface FriendDao {
     suspend fun getFriendCount(): Int
 
     @Query("SELECT * FROM friends ORDER BY name ASC")
+    suspend fun getAllFriendsList(): List<Friend>
+
+    @Query("SELECT * FROM friends ORDER BY name ASC")
     fun getAllFriends(): Flow<List<Friend>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

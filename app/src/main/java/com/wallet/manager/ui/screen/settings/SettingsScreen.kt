@@ -231,6 +231,54 @@ fun SettingsScreen(
                     onClick = { vm.setLanguage(AppLanguage.EN) }
                 )
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(stringResource(R.string.cloud_sync_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+
+            state.lastCloudSyncLabel?.let { lastSync ->
+                Text(
+                    text = stringResource(R.string.last_cloud_sync, lastSync),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = { vm.restoreFromCloud() },
+                    enabled = !state.isCloudSyncing
+                ) {
+                    Text(stringResource(R.string.restore_from_cloud))
+                }
+                OutlinedButton(
+                    onClick = { vm.pushLocalToCloud() },
+                    enabled = !state.isCloudSyncing
+                ) {
+                    Text(stringResource(R.string.push_local_to_cloud))
+                }
+            }
+
+            if (state.isCloudSyncing) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.cloud_sync_in_progress))
+                }
+            }
+
+            state.cloudSyncMessage?.let { message ->
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }

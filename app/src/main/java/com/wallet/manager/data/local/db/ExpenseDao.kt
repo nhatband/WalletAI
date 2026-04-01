@@ -12,6 +12,12 @@ interface ExpenseDao {
     suspend fun getExpenseCount(): Int
 
     @Query("SELECT * FROM expenses ORDER BY date DESC")
+    suspend fun getAllExpensesList(): List<Expense>
+
+    @Query("SELECT * FROM expense_friend_cross_ref")
+    suspend fun getAllFriendCrossRefsList(): List<ExpenseFriendCrossRef>
+
+    @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<Expense>>
 
     @Transaction

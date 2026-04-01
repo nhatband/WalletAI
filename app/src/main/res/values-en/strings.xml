@@ -68,6 +68,11 @@
     <string name="security_sub">Security authentication</string>
     <string name="vietnamese">Vietnamese</string>
     <string name="english">English</string>
+    <string name="cloud_sync_title">Cloud Sync</string>
+    <string name="restore_from_cloud">Restore from cloud</string>
+    <string name="push_local_to_cloud">Push local to cloud</string>
+    <string name="cloud_sync_in_progress">Syncing data...</string>
+    <string name="last_cloud_sync">Last cloud sync: %s</string>
 
     <string name="add_friend">Add Friend</string>
     <string name="sync_contacts">Sync Contacts</string>

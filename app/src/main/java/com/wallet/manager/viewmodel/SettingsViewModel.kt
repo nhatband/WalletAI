@@ -1,11 +1,13 @@
 package com.wallet.manager.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.prefs.SettingsDataStore
+import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.secure.SecurePrefsManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class SettingsUiState(
     val darkTheme: Boolean = false,
@@ -24,12 +29,16 @@ data class SettingsUiState(
     val isEditingApiKey: Boolean = false,
     val hasStoredApiKey: Boolean = false,
     val language: AppLanguage = AppLanguage.VI,
-    val showPasscodeSetup: Boolean = false
+    val showPasscodeSetup: Boolean = false,
+    val isCloudSyncing: Boolean = false,
+    val cloudSyncMessage: String? = null,
+    val lastCloudSyncLabel: String? = null
 )
 
 enum class AppLanguage { VI, EN }
 
 class SettingsViewModel(
+    private val application: Application,
     private val settings: SettingsDataStore,
     private val secure: SecurePrefsManager
 ) : ViewModel() {
@@ -39,6 +48,8 @@ class SettingsViewModel(
     private val isEditing = MutableStateFlow(false)
     private val refreshTrigger = MutableStateFlow(0)
     private val _showPasscodeSetup = MutableStateFlow(false)
+    private val _isCloudSyncing = MutableStateFlow(false)
+    private val _cloudSyncMessage = MutableStateFlow<String?>(null)
 
     private val apiStateFlow = combine(
         pendingApiKey,
@@ -67,7 +78,7 @@ class SettingsViewModel(
         )
     }
 
-    val uiState: StateFlow<SettingsUiState> =
+    private val baseUiState =
         combine(
             settings.darkThemeFlow,
             settings.requirePasscodeFlow,
@@ -85,6 +96,20 @@ class SettingsViewModel(
                 isEditingApiKey = api.isEditing,
                 hasStoredApiKey = api.hasStored,
                 language = lang
+            )
+        }
+
+    val uiState: StateFlow<SettingsUiState> =
+        combine(
+            baseUiState,
+            settings.lastCloudSyncAtFlow,
+            _isCloudSyncing,
+            _cloudSyncMessage
+        ) { state, lastSyncAt, isCloudSyncing, cloudSyncMessage ->
+            state.copy(
+                isCloudSyncing = isCloudSyncing,
+                cloudSyncMessage = cloudSyncMessage,
+                lastCloudSyncLabel = lastSyncAt?.let(::formatSyncTime)
             )
         }.combine(_showPasscodeSetup) { state, showPassSetup ->
             state.copy(showPasscodeSetup = showPassSetup)
@@ -182,6 +207,56 @@ class SettingsViewModel(
         _showPasscodeSetup.value = true
     }
 
+    fun restoreFromCloud() {
+        viewModelScope.launch {
+            _isCloudSyncing.value = true
+            _cloudSyncMessage.value = null
+            val restored = runCatching {
+                SupabaseRestoreManager.restoreFromCloud(application.applicationContext)
+            }.getOrElse {
+                _cloudSyncMessage.value = it.message ?: "Cloud restore failed"
+                _isCloudSyncing.value = false
+                return@launch
+            }
+
+            if (restored) {
+                settings.setLastCloudSyncAt(System.currentTimeMillis())
+                settings.setAutoRestoreDone(true)
+                _cloudSyncMessage.value = "Cloud restore completed"
+            } else {
+                _cloudSyncMessage.value = "No cloud data found"
+            }
+            _isCloudSyncing.value = false
+        }
+    }
+
+    fun pushLocalToCloud() {
+        viewModelScope.launch {
+            _isCloudSyncing.value = true
+            _cloudSyncMessage.value = null
+            val pushed = runCatching {
+                SupabaseRestoreManager.pushLocalToCloud(application.applicationContext)
+            }.getOrElse {
+                _cloudSyncMessage.value = it.message ?: "Cloud upload failed"
+                _isCloudSyncing.value = false
+                return@launch
+            }
+
+            if (pushed) {
+                settings.setLastCloudSyncAt(System.currentTimeMillis())
+                _cloudSyncMessage.value = "Local data uploaded to cloud"
+            } else {
+                _cloudSyncMessage.value = "Local database is empty"
+            }
+            _isCloudSyncing.value = false
+        }
+    }
+
+    private fun formatSyncTime(timestamp: Long): String {
+        val locale = if (Locale.getDefault().language == "vi") Locale("vi", "VN") else Locale.US
+        return SimpleDateFormat("dd/MM/yyyy HH:mm", locale).format(Date(timestamp))
+    }
+
     private data class ApiInternalState(
         val displayValue: String,
         val showPlain: Boolean,
@@ -197,7 +272,7 @@ class SettingsViewModel(
                         ?: throw IllegalArgumentException("Application context missing")
                 val settings = SettingsDataStore(appContext)
                 val secure = SecurePrefsManager.getInstance(appContext)
-                SettingsViewModel(settings, secure)
+                SettingsViewModel(appContext as Application, settings, secure)
             }
         }
     }
