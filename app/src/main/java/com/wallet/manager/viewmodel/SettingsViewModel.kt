@@ -266,6 +266,8 @@ class SettingsViewModel(
     fun signOut() {
         viewModelScope.launch {
             runCatching { SupabaseConfig.client.auth.signOut() }
+            SupabaseRestoreManager.clearLocalData(application.applicationContext)
+            settings.resetCloudRestoreState()
             settings.clearSignedIn()
         }
     }

@@ -108,4 +108,11 @@ class SettingsDataStore(private val context: Context) {
             prefs.remove(KEY_SIGNED_IN_EMAIL)
         }
     }
+
+    suspend fun resetCloudRestoreState() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_AUTO_RESTORE_DONE] = false
+            prefs.remove(KEY_LAST_CLOUD_SYNC_AT)
+        }
+    }
 }

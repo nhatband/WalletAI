@@ -11,10 +11,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 object SupabaseRestoreManager {
+    suspend fun clearLocalData(context: Context) = withContext(Dispatchers.IO) {
+        val db = AppDatabase.get(context)
+        db.withTransaction {
+            db.expenseDao().deleteAllFriendCrossRefs()
+            db.expenseDao().deleteAllExpenses()
+            db.friendDao().deleteAllFriends()
+            db.creditCardDao().deleteAll()
+            db.chatDao().clearHistory()
+        }
+    }
+
     suspend fun restoreIfLocalEmpty(context: Context) = withContext(Dispatchers.IO) {
         val settings = SettingsDataStore(context)
+        val isSignedIn = settings.isSignedInFlow.first()
         val autoRestoreDone = settings.autoRestoreDoneFlow.first()
-        if (autoRestoreDone) return@withContext
+        if (!isSignedIn || autoRestoreDone) return@withContext
 
         val restored = restoreFromCloud(context, onlyWhenLocalEmpty = true)
         settings.setAutoRestoreDone(true)

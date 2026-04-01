@@ -8,8 +8,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.prefs.SettingsDataStore
 import com.wallet.manager.data.remote.supabase.SupabaseConfig
+import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,18 +65,28 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             runCatching {
+                val email = state.email.trim()
+                val previousEmail = settings.signedInEmailFlow.first()
+
                 if (state.isRegister) {
                     SupabaseConfig.client.auth.signUpWith(Email) {
-                        email = state.email.trim()
+                        email = email
                         password = state.password
                     }
                 } else {
                     SupabaseConfig.client.auth.signInWith(Email) {
-                        email = state.email.trim()
+                        email = email
                         password = state.password
                     }
                 }
-                settings.setSignedIn(state.email.trim())
+                if (previousEmail != null && previousEmail != email) {
+                    SupabaseRestoreManager.clearLocalData(getApplication())
+                }
+                settings.resetCloudRestoreState()
+                settings.setSignedIn(email)
+                runCatching {
+                    SupabaseRestoreManager.restoreFromCloud(getApplication(), onlyWhenLocalEmpty = true)
+                }
             }.onFailure { throwable ->
                 _uiState.update {
                     it.copy(
