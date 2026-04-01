@@ -20,6 +20,8 @@ class SettingsDataStore(private val context: Context) {
     private val KEY_LANGUAGE = stringPreferencesKey("language")
     private val KEY_AUTO_RESTORE_DONE = booleanPreferencesKey("auto_restore_done")
     private val KEY_LAST_CLOUD_SYNC_AT = longPreferencesKey("last_cloud_sync_at")
+    private val KEY_IS_SIGNED_IN = booleanPreferencesKey("is_signed_in")
+    private val KEY_SIGNED_IN_EMAIL = stringPreferencesKey("signed_in_email")
 
     val darkThemeFlow: Flow<Boolean> = context.dataStore.data.map { prefs: Preferences ->
         prefs[KEY_DARK_THEME] ?: false
@@ -47,6 +49,14 @@ class SettingsDataStore(private val context: Context) {
 
     val lastCloudSyncAtFlow: Flow<Long?> = context.dataStore.data.map { prefs: Preferences ->
         prefs[KEY_LAST_CLOUD_SYNC_AT]
+    }
+
+    val isSignedInFlow: Flow<Boolean> = context.dataStore.data.map { prefs: Preferences ->
+        prefs[KEY_IS_SIGNED_IN] ?: false
+    }
+
+    val signedInEmailFlow: Flow<String?> = context.dataStore.data.map { prefs: Preferences ->
+        prefs[KEY_SIGNED_IN_EMAIL]
     }
 
     suspend fun setDarkTheme(enabled: Boolean) {
@@ -82,6 +92,20 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setLastCloudSyncAt(timestamp: Long) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LAST_CLOUD_SYNC_AT] = timestamp
+        }
+    }
+
+    suspend fun setSignedIn(email: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_IS_SIGNED_IN] = true
+            prefs[KEY_SIGNED_IN_EMAIL] = email
+        }
+    }
+
+    suspend fun clearSignedIn() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_IS_SIGNED_IN] = false
+            prefs.remove(KEY_SIGNED_IN_EMAIL)
         }
     }
 }

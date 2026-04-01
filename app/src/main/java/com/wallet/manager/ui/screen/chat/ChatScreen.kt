@@ -39,9 +39,13 @@ fun ChatScreen(
     val state by vm.uiState.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.chat_title)) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(
@@ -88,8 +92,9 @@ fun ChatScreen(
             }
 
             Surface(
-                tonalElevation = 2.dp,
-                shadowElevation = 4.dp
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 1.dp,
+                shadowElevation = 2.dp
             ) {
                 Row(
                     modifier = Modifier

@@ -8,7 +8,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.prefs.SettingsDataStore
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
+import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.secure.SecurePrefsManager
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +34,8 @@ data class SettingsUiState(
     val showPasscodeSetup: Boolean = false,
     val isCloudSyncing: Boolean = false,
     val cloudSyncMessage: String? = null,
-    val lastCloudSyncLabel: String? = null
+    val lastCloudSyncLabel: String? = null,
+    val signedInEmail: String? = null
 )
 
 enum class AppLanguage { VI, EN }
@@ -78,7 +81,7 @@ class SettingsViewModel(
         )
     }
 
-    private val baseUiState =
+    private val basicUiState =
         combine(
             settings.darkThemeFlow,
             settings.requirePasscodeFlow,
@@ -97,6 +100,14 @@ class SettingsViewModel(
                 hasStoredApiKey = api.hasStored,
                 language = lang
             )
+        }
+
+    private val baseUiState =
+        combine(
+            basicUiState,
+            settings.signedInEmailFlow
+        ) { state, signedInEmail ->
+            state.copy(signedInEmail = signedInEmail)
         }
 
     val uiState: StateFlow<SettingsUiState> =
@@ -249,6 +260,13 @@ class SettingsViewModel(
                 _cloudSyncMessage.value = "Local database is empty"
             }
             _isCloudSyncing.value = false
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            runCatching { SupabaseConfig.client.auth.signOut() }
+            settings.clearSignedIn()
         }
     }
 

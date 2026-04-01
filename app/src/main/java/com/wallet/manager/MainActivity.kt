@@ -35,6 +35,7 @@ import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.secure.SecurePrefsManager
 import com.wallet.manager.ui.navigation.AppDestination
 import com.wallet.manager.ui.navigation.WalletApp
+import com.wallet.manager.ui.screen.auth.AuthScreen
 import com.wallet.manager.ui.theme.WalletTheme
 import com.wallet.manager.viewmodel.AppLanguage
 import kotlinx.coroutines.flow.first
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val darkTheme by settings.darkThemeFlow.collectAsState(initial = false)
             val language by settings.languageFlow.collectAsState(initial = AppLanguage.VI)
+            val isSignedIn by settings.isSignedInFlow.collectAsState(initial = false)
             
             val locale = remember(language) { 
                 if (language == AppLanguage.EN) Locale.US else Locale("vi", "VN")
@@ -101,25 +103,29 @@ class MainActivity : AppCompatActivity() {
                 key(language) {
                     WalletTheme(darkTheme = darkTheme) {
                         Surface(modifier = Modifier.fillMaxSize()) {
-                            val navController = rememberNavController()
-                            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                            if (!isSignedIn) {
+                                AuthScreen()
+                            } else {
+                                val navController = rememberNavController()
+                                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-                            WalletApp(
-                                navController = navController,
-                                drawerState = drawerState,
-                                onNavigate = { dest ->
-                                    composeScope.launch {
-                                        drawerState.close()
-                                        navController.navigate(dest.route) {
-                                            launchSingleTop = true
-                                            popUpTo(AppDestination.HOME.route)
+                                WalletApp(
+                                    navController = navController,
+                                    drawerState = drawerState,
+                                    onNavigate = { dest ->
+                                        composeScope.launch {
+                                            drawerState.close()
+                                            navController.navigate(dest.route) {
+                                                launchSingleTop = true
+                                                popUpTo(AppDestination.HOME.route)
+                                            }
                                         }
+                                    },
+                                    onOpenDrawer = {
+                                        composeScope.launch { drawerState.open() }
                                     }
-                                },
-                                onOpenDrawer = {
-                                    composeScope.launch { drawerState.open() }
-                                }
-                            )
+                                )
+                            }
 
                             if (isAppLocked) {
                                 AppLockScreen(

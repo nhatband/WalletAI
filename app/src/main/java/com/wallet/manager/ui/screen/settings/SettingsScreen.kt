@@ -2,8 +2,13 @@ package com.wallet.manager.ui.screen.settings
 
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -42,9 +47,13 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(
@@ -60,8 +69,63 @@ fun SettingsScreen(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
                 .fillMaxSize()
         ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val accountInitial = state.signedInEmail?.firstOrNull()?.uppercaseChar()?.toString()
+                        if (accountInitial.isNullOrBlank()) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        } else {
+                            Text(
+                                text = accountInitial,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Account", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = state.signedInEmail ?: "Not signed in",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = vm::signOut,
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("Sign out")
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
             Text(stringResource(R.string.security), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             
@@ -245,19 +309,17 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = { vm.restoreFromCloud() },
-                    enabled = !state.isCloudSyncing
-                ) {
-                    Text(stringResource(R.string.restore_from_cloud))
-                }
-                OutlinedButton(
-                    onClick = { vm.pushLocalToCloud() },
-                    enabled = !state.isCloudSyncing
-                ) {
-                    Text(stringResource(R.string.push_local_to_cloud))
-                }
+            Text(
+                text = "Local changes are synced to cloud automatically. Use restore only when reinstalling or recovering this device.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { vm.restoreFromCloud() },
+                enabled = !state.isCloudSyncing
+            ) {
+                Text(stringResource(R.string.restore_from_cloud))
             }
 
             if (state.isCloudSyncing) {
@@ -279,6 +341,8 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
