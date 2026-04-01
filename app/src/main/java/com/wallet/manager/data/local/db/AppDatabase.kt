@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.ChatMessageEntity
+import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Friend
 import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
 
@@ -14,9 +15,10 @@ import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
         Expense::class, 
         ChatMessageEntity::class, 
         Friend::class, 
-        ExpenseFriendCrossRef::class
+        ExpenseFriendCrossRef::class,
+        CreditCard::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun chatDao(): ChatDao
     abstract fun friendDao(): FriendDao
+    abstract fun creditCardDao(): CreditCardDao
 
     companion object {
         @Volatile

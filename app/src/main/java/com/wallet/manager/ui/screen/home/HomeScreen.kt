@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.wallet.manager.R
 import com.wallet.manager.data.local.db.ExpenseWithFriends
+import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.Friend
 import com.wallet.manager.viewmodel.HomeUiState
@@ -443,6 +444,7 @@ private fun ExpenseBottomSheet(
                             state = state,
                             vm = vm,
                             onFieldChange = vm::onManualFieldChange,
+                            onCreditCardSelected = { vm.onManualFieldChange(creditCardId = it, setCreditCardSelection = true) },
                             onPhotoClick = { photoPickerLauncher.launch("image/*") },
                             onClearPhoto = { vm.onManualFieldChange(clearBillImage = true) }
                         )
@@ -586,6 +588,7 @@ private fun ExpenseForm(
         amount: String? ,
         dateMillis: Long?
     ) -> Unit,
+    onCreditCardSelected: (Long?) -> Unit,
     onPhotoClick: () -> Unit,
     onClearPhoto: () -> Unit
 ) {
@@ -662,6 +665,12 @@ private fun ExpenseForm(
             Spacer(Modifier.width(12.dp))
             Text(dateFormat.format(Date(state.manualDateMillis)))
         }
+
+        CreditCardPaymentSection(
+            cards = state.allCreditCards,
+            selectedCreditCardId = state.selectedCreditCardId,
+            onCreditCardSelected = onCreditCardSelected
+        )
 
         Text(stringResource(R.string.bill_image), style = MaterialTheme.typography.titleSmall)
         if (state.billImageUri != null) {
@@ -850,6 +859,51 @@ private fun DetailRow(label: String, value: String) {
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun CreditCardPaymentSection(
+    cards: List<CreditCard>,
+    selectedCreditCardId: Long?,
+    onCreditCardSelected: (Long?) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.payment_method_title), style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selectedCreditCardId == null,
+                onClick = { onCreditCardSelected(null) },
+                label = { Text(stringResource(R.string.payment_cash)) }
+            )
+            FilterChip(
+                selected = selectedCreditCardId != null,
+                onClick = {
+                    val defaultCardId = cards.firstOrNull()?.id
+                    if (defaultCardId != null) onCreditCardSelected(defaultCardId)
+                },
+                enabled = cards.isNotEmpty(),
+                label = { Text(stringResource(R.string.payment_credit_card)) }
+            )
+        }
+
+        if (selectedCreditCardId != null && cards.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(cards, key = { it.id }) { card ->
+                    FilterChip(
+                        selected = card.id == selectedCreditCardId,
+                        onClick = { onCreditCardSelected(card.id) },
+                        label = { Text("${card.name} •••• ${card.last4Digits}") }
+                    )
+                }
+            }
+        } else if (cards.isEmpty()) {
+            Text(
+                text = stringResource(R.string.credit_card_hint_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

@@ -1,9 +1,11 @@
 package com.wallet.manager.data.remote.supabase
 
 import com.wallet.manager.data.mapper.toDto
+import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.Friend
 import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
+import com.wallet.manager.data.remote.supabase.model.CreditCardDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseFriendDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseDto
 import com.wallet.manager.data.remote.supabase.model.FriendDto
@@ -22,6 +24,11 @@ class SupabaseService {
     suspend fun syncExpense(expense: Expense) = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
         client.postgrest["expenses"].upsert(expense.toDto())
+    }
+
+    suspend fun syncCreditCard(card: CreditCard) = withContext(Dispatchers.IO) {
+        SupabaseConfig.ensureAuthenticated()
+        client.postgrest["credit_cards"].upsert(card.toDto())
     }
 
     suspend fun syncExpenseFriendCrossRef(
@@ -54,6 +61,15 @@ class SupabaseService {
         }
     }
 
+    suspend fun deleteCreditCard(cardId: Long) = withContext(Dispatchers.IO) {
+        SupabaseConfig.ensureAuthenticated()
+        client.postgrest["credit_cards"].delete {
+            filter {
+                eq("id", cardId)
+            }
+        }
+    }
+
     suspend fun fetchFriends(): List<FriendDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
         client.postgrest["friends"].select().decodeList<FriendDto>()
@@ -67,5 +83,10 @@ class SupabaseService {
     suspend fun fetchExpenseFriendCrossRefs(): List<ExpenseFriendDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
         client.postgrest["expense_friend_cross_ref"].select().decodeList<ExpenseFriendDto>()
+    }
+
+    suspend fun fetchCreditCards(): List<CreditCardDto> = withContext(Dispatchers.IO) {
+        SupabaseConfig.ensureAuthenticated()
+        client.postgrest["credit_cards"].select().decodeList<CreditCardDto>()
     }
 }

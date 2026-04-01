@@ -1,8 +1,10 @@
 package com.wallet.manager.data.mapper
 
+import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
 import com.wallet.manager.data.local.entity.Friend
+import com.wallet.manager.data.remote.supabase.model.CreditCardDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseDto
 import com.wallet.manager.data.remote.supabase.model.ExpenseFriendDto
 import com.wallet.manager.data.remote.supabase.model.FriendDto
@@ -19,7 +21,8 @@ fun Expense.toDto() = ExpenseDto(
     is_split = isSplit,
     payer_id = payerId,
     is_settled = isSettled,
-    my_share_count = myShareCount
+    my_share_count = myShareCount,
+    credit_card_id = creditCardId
 )
 
 fun Friend.toDto() = FriendDto(
@@ -28,6 +31,16 @@ fun Friend.toDto() = FriendDto(
     phone_number = phoneNumber,
     image_uri = imageUri,
     total_owed = totalOwed,
+    created_at = createdAt
+)
+
+fun CreditCard.toDto() = CreditCardDto(
+    id = if (id == 0L) null else id,
+    name = name,
+    holder_name = holderName,
+    last4_digits = last4Digits,
+    statement_day = statementDay,
+    image_uri = imageUri,
     created_at = createdAt
 )
 
@@ -43,7 +56,8 @@ fun ExpenseDto.toEntity() = Expense(
     isSplit = is_split,
     payerId = payer_id,
     isSettled = is_settled,
-    myShareCount = my_share_count
+    myShareCount = my_share_count,
+    creditCardId = credit_card_id
 )
 
 fun FriendDto.toEntity() = Friend(
@@ -52,6 +66,16 @@ fun FriendDto.toEntity() = Friend(
     phoneNumber = phone_number,
     imageUri = image_uri,
     totalOwed = total_owed,
+    createdAt = created_at
+)
+
+fun CreditCardDto.toEntity() = CreditCard(
+    id = id ?: 0L,
+    name = name,
+    holderName = holder_name,
+    last4Digits = last4_digits,
+    statementDay = statement_day,
+    imageUri = image_uri,
     createdAt = created_at
 )
 

@@ -76,7 +76,12 @@ class ChatViewModel(
         val currentKey = secure.getGeminiApiKey().orEmpty()
         if (currentKey.isEmpty()) {
             viewModelScope.launch {
-                chatDao.insertMessage(ChatMessageEntity(isUser = false, text = "ChÆ°a cáº¥u hÃ¬nh Gemini API key trong CÃ i Ä‘áº·t."))
+                chatDao.insertMessage(
+                    ChatMessageEntity(
+                        isUser = false,
+                        text = "Chưa cấu hình Gemini API key trong Cài đặt."
+                    )
+                )
             }
             return
         }
@@ -87,7 +92,6 @@ class ChatViewModel(
         _uiState.update { it.copy(input = "", isSending = true) }
 
         viewModelScope.launch {
-            // LÆ°u tin nháº¯n ngÆ°á»i dÃ¹ng
             chatDao.insertMessage(ChatMessageEntity(isUser = true, text = messageText))
 
             try {
@@ -98,75 +102,79 @@ class ChatViewModel(
 
                 val arr = JSONArray()
                 expensesWithFriends.forEach { item ->
-                    val e = item.expense
+                    val expense = item.expense
                     val obj = JSONObject()
-                    obj.put("id", e.id)
-                    obj.put("type", e.type)
-                    obj.put("title", e.title)
-                    obj.put("amount", e.amount)
-                    obj.put("date", e.date)
-                    obj.put("isSplit", e.isSplit)
-                    obj.put("myShareCount", e.myShareCount)
+                    obj.put("id", expense.id)
+                    obj.put("type", expense.type)
+                    obj.put("title", expense.title)
+                    obj.put("amount", expense.amount)
+                    obj.put("date", expense.date)
+                    obj.put("isSplit", expense.isSplit)
+                    obj.put("myShareCount", expense.myShareCount)
 
-                    val payerName = if (e.payerId == null) "TÃ´i" else friendsMap[e.payerId]?.name ?: "NgÆ°á»i láº¡"
+                    val payerName = if (expense.payerId == null) {
+                        "Tôi"
+                    } else {
+                        friendsMap[expense.payerId]?.name ?: "Người lạ"
+                    }
                     obj.put("payer", payerName)
 
-                    val friendsInvolved = JSONArray()
+                    val participants = JSONArray()
                     item.friendCrossRefs.forEach { ref ->
-                        val f = friendsMap[ref.friendId]
-                        if (f != null) {
-                            val fObj = JSONObject()
-                            fObj.put("name", f.name)
-                            fObj.put("shareCount", ref.shareCount)
-                            fObj.put("isSettled", ref.isSettled)
-                            friendsInvolved.put(fObj)
+                        val friend = friendsMap[ref.friendId]
+                        if (friend != null) {
+                            val friendObj = JSONObject()
+                            friendObj.put("name", friend.name)
+                            friendObj.put("shareCount", ref.shareCount)
+                            friendObj.put("isSettled", ref.isSettled)
+                            participants.put(friendObj)
                         }
                     }
-                    obj.put("participants", friendsInvolved)
-
+                    obj.put("participants", participants)
                     arr.put(obj)
                 }
 
                 val summary = JSONObject()
                 summary.put("expenses", arr)
-                summary.put("instruction", """
-                    Báº¡n lÃ  má»™t trá»£ lÃ½ tÃ i chÃ­nh cÃ¡ nhÃ¢n thÃ¢n thiá»‡n, thÃ´ng minh tÃªn lÃ  "VÃ­ ThÃ´ng Minh".
-                    Nhiá»‡m vá»¥ cá»§a báº¡n lÃ  giÃºp ngÆ°á»i dÃ¹ng phÃ¢n tÃ­ch ná»£ náº§n vÃ  chi tiÃªu má»™t cÃ¡ch dá»… hiá»ƒu, gáº§n gÅ©i nhÆ° má»™t ngÆ°á»i báº¡n.
+                summary.put(
+                    "instruction",
+                    """
+                    Bạn là một trợ lý tài chính cá nhân thân thiện, thông minh tên là "Ví Thông Minh".
+                    Nhiệm vụ của bạn là giúp người dùng phân tích nợ nần và chi tiêu một cách dễ hiểu, gần gũi như một người bạn.
 
-                    PHONG CÃCH TRáº¢ Lá»œI:
-                    - ThÃ¢n thiá»‡n, sá»­ dá»¥ng ngÃ´n ngá»¯ tá»± nhiÃªn (vÃ­ dá»¥: "ChÃ o báº¡n nÃ¨!", "Äá»ƒ mÃ¬nh kiá»ƒm tra giÃºp nhÃ©...", "Äá»«ng lo, mÃ¬nh tÃ­nh xong rá»“i Ä‘Ã¢y!").
-                    - Sá»­ dá»¥ng emoji phÃ¹ há»£p Ä‘á»ƒ lÃ m cÃ¢u tráº£ lá»i sinh Ä‘á»™ng (ðŸ’°, ðŸ¤, ðŸ“Š, âœ¨).
-                    - TrÃ¬nh bÃ y thÃ´ng tin rÃµ rÃ ng, Æ°u tiÃªn sá»­ dá»¥ng danh sÃ¡ch (bullet points) hoáº·c báº£ng Ä‘Æ¡n giáº£n náº¿u cÃ³ nhiá»u sá»‘ liá»‡u.
-                    - Táº­p trung vÃ o viá»‡c giáº£i quyáº¿t ná»—i lo vá» ná»£ náº§n: nháº¥n máº¡nh ai ná»£ ai bao nhiÃªu vÃ  khoáº£n nÃ o Ä‘Ã£ tráº£/chÆ°a tráº£.
+                    PHONG CÁCH TRẢ LỜI:
+                    - Thân thiện, tự nhiên, dễ đọc.
+                    - Có thể dùng emoji phù hợp để câu trả lời sinh động hơn.
+                    - Ưu tiên giải thích rõ ai nợ ai, số tiền bao nhiêu, khoản nào đã thanh toán và khoản nào chưa.
+                    - Nếu có nhiều số liệu, hãy trình bày thành danh sách ngắn gọn.
 
-                    Dá»® LIá»†U PHÃ‚N TÃCH:
-                    ${arr}
+                    DỮ LIỆU PHÂN TÍCH:
+                    $arr
 
-                    QUY Táº®C TÃNH TOÃN (HÃ£y tá»± tÃ­nh toÃ¡n dá»±a trÃªn logic nÃ y):
-                    1. Má»—i chi tiÃªu cÃ³ tá»•ng sá»‘ suáº¥t (shares) = myShareCount + tá»•ng shareCount cá»§a cÃ¡c participants.
-                    2. Sá»‘ tiá»n má»—i suáº¥t = amount / tá»•ng sá»‘ suáº¥t.
-                    3. Náº¿u Payer (NgÆ°á»i tráº£) lÃ  'TÃ´i':
-                       - Báº¡n bÃ¨ trong 'participants' ná»£ 'TÃ´i' sá»‘ tiá»n = (sá»‘ suáº¥t cá»§a há») * (sá»‘ tiá»n má»—i suáº¥t).
-                       - Náº¿u isSettled = true: há» Ä‘Ã£ tráº£ rá»“i (ghi nháº­n lÃ  'ÄÃ£ thanh toÃ¡n').
-                       - Náº¿u isSettled = false: há» váº«n cÃ²n ná»£ (ghi nháº­n lÃ  'ChÆ°a thanh toÃ¡n').
-                    4. Náº¿u Payer lÃ  má»™t ngÆ°á»i báº¡n (vÃ­ dá»¥ 'Nguyá»…n VÄƒn B'):
-                       - 'TÃ´i' ná»£ 'Nguyá»…n VÄƒn B' sá»‘ tiá»n = myShareCount * (sá»‘ tiá»n má»—i suáº¥t).
-                       - Náº¿u isSettled = true: tÃ´i Ä‘Ã£ tráº£ rá»“i.
-                       - Náº¿u isSettled = false: tÃ´i váº«n cÃ²n ná»£ báº¡n Ä‘Ã³.
+                    QUY TẮC TÍNH TOÁN:
+                    1. Mỗi chi tiêu có tổng số suất = myShareCount + tổng shareCount của các participants.
+                    2. Số tiền mỗi suất = amount / tổng số suất.
+                    3. Nếu người trả là "Tôi":
+                       - Bạn bè trong participants nợ "Tôi" số tiền = số suất của họ * số tiền mỗi suất.
+                       - Nếu isSettled = true: họ đã trả rồi.
+                       - Nếu isSettled = false: họ vẫn còn nợ.
+                    4. Nếu người trả là một người bạn:
+                       - "Tôi" nợ người đó số tiền = myShareCount * số tiền mỗi suất.
+                       - Nếu isSettled = true: tôi đã trả rồi.
+                       - Nếu isSettled = false: tôi vẫn còn nợ.
 
-                    HÃ£y tráº£ lá»i cÃ¢u há»i cá»§a ngÆ°á»i dÃ¹ng dá»±a trÃªn dá»¯ liá»‡u vÃ  phong cÃ¡ch trÃªn. Náº¿u ngÆ°á»i dÃ¹ng chá»‰ chÃ o há»i, hÃ£y giá»›i thiá»‡u báº£n thÃ¢n má»™t cÃ¡ch dá»… thÆ°Æ¡ng.
-                """.trimIndent())
+                    Hãy trả lời câu hỏi của người dùng dựa trên dữ liệu trên. Nếu người dùng chỉ chào hỏi, hãy giới thiệu bản thân ngắn gọn và thân thiện.
+                    """.trimIndent()
+                )
 
                 val reply = assistant.chatWithContext(messageText, summary.toString())
-
-                // LÆ°u pháº£n há»“i cá»§a bot
                 chatDao.insertMessage(ChatMessageEntity(isUser = false, text = reply))
                 _uiState.update { it.copy(isSending = false) }
             } catch (t: Throwable) {
                 chatDao.insertMessage(
                     ChatMessageEntity(
                         isUser = false,
-                        text = "Tinh nang AI hien khong kha dung do xung dot thu vien Ktor/Gemini. ${t.message ?: ""}".trim()
+                        text = "Tính năng AI hiện không khả dụng. ${t.message ?: ""}".trim()
                     )
                 )
                 _uiState.update { it.copy(isSending = false) }

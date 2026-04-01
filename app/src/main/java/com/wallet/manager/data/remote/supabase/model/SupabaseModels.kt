@@ -15,7 +15,8 @@ data class ExpenseDto(
     val is_split: Boolean = false,
     val payer_id: Long? = null,
     val is_settled: Boolean = false,
-    val my_share_count: Int = 1
+    val my_share_count: Int = 1,
+    val credit_card_id: Long? = null
 )
 
 @Serializable
@@ -34,4 +35,15 @@ data class ExpenseFriendDto(
     val friend_id: Long,
     val share_count: Int = 1,
     val is_settled: Boolean = false
+)
+
+@Serializable
+data class CreditCardDto(
+    val id: Long? = null,
+    val name: String,
+    val holder_name: String,
+    val last4_digits: String,
+    val statement_day: Int,
+    val image_uri: String? = null,
+    val created_at: Long
 )

@@ -143,4 +143,23 @@
     <string name="i_owe_them">I owe them</string>
     <string name="tap_to_add_photo">Tap to add photo</string>
     <string name="home_empty_desc">Start with your first expense and keep every transaction in one calm place.</string>
+    <string name="credit_cards_title">Credit Cards</string>
+    <string name="payment_method_title">Payment method</string>
+    <string name="payment_cash">Cash</string>
+    <string name="payment_credit_card">Credit card</string>
+    <string name="credit_card_hint_empty">Add a credit card first to mark card transactions.</string>
+    <string name="credit_cards_empty_title">No credit cards yet</string>
+    <string name="credit_cards_empty_desc">Add your cards, attach a photo if needed, and track each statement cycle separately.</string>
+    <string name="credit_card_due_label">Due this statement</string>
+    <string name="credit_card_cycle_label">Current cycle</string>
+    <string name="credit_card_due_date_text">Statement closed on %1$s. This amount is ready to pay.</string>
+    <string name="credit_card_next_statement_text">Next statement closes on %1$s.</string>
+    <string name="credit_card_transactions_title">Card transactions</string>
+    <string name="credit_card_delete_confirm">Delete this credit card from the app?</string>
+    <string name="credit_card_form_title">Add credit card</string>
+    <string name="credit_card_scan_hint">Tap to scan or attach the card image</string>
+    <string name="credit_card_name_label">Card name</string>
+    <string name="credit_card_holder_label">Cardholder name</string>
+    <string name="credit_card_last4_label">Last 4 digits</string>
+    <string name="credit_card_statement_day_label">Statement day (1-28)</string>
 </resources>

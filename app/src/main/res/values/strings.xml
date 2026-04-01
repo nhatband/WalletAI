@@ -43,7 +43,7 @@
     <string name="stat_total">Tổng chi</string>
     <string name="stat_avg">TB/ngày</string>
     <string name="stat_max">Lớn nhất</string>
-    <string name="stat_ratio">Tỉ lệ theo loại</string>
+    <string name="stat_ratio">Tỷ lệ theo loại</string>
     <string name="stat_daily">Chi tiêu theo ngày</string>
     <string name="no_data">Chưa có dữ liệu</string>
 
@@ -56,7 +56,7 @@
     <string name="lock_title">Mã PIN bảo mật</string>
     <string name="lock_desc">Nhập mã PIN 6 số để mở khóa ứng dụng</string>
     <string name="lock_error">Mã PIN không đúng</string>
-    <string name="lock_biometric">Sử dụng Sinh trắc học</string>
+    <string name="lock_biometric">Sử dụng sinh trắc học</string>
     <string name="lock_prompt_title">Bảo mật ứng dụng</string>
     <string name="lock_prompt_sub">Xác thực khuôn mặt, vân tay hoặc mã PIN máy</string>
 
@@ -126,21 +126,42 @@
     <string name="from_to_date">Từ %1$s đến %2$s</string>
     <string name="note_label">Ghi chú: %s</string>
     <string name="suat_format">%1$d suất (%2$s đ)</string>
-    <string name="auth_tagline">Quáº£n lÃ½ chi tiÃªu tinh gá»n, Ä‘á»“ng bá»™ riÃªng tÆ° vá»›i tÃ i khoáº£n cá»§a báº¡n.</string>
-    <string name="login">ÄÄƒng nháº­p</string>
-    <string name="register">ÄÄƒng kÃ½</string>
+
+    <string name="auth_tagline">Quản lý chi tiêu tinh gọn, đồng bộ riêng tư với tài khoản của bạn.</string>
+    <string name="login">Đăng nhập</string>
+    <string name="register">Đăng ký</string>
     <string name="email">Email</string>
-    <string name="password">Máº­t kháº©u</string>
-    <string name="confirm_password">XÃ¡c nháº­n máº­t kháº©u</string>
-    <string name="please_wait">Vui lÃ²ng chá»</string>
-    <string name="create_account">Táº¡o tÃ i khoáº£n</string>
-    <string name="sign_in">ÄÄƒng nháº­p</string>
-    <string name="already_have_account">ÄÃ£ cÃ³ tÃ i khoáº£n?</string>
-    <string name="create_new_account">Táº¡o tÃ i khoáº£n má»›i</string>
-    <string name="friend_detail_title">Chi tiáº¿t ná»£: %1$s</string>
-    <string name="no_related_expenses">KhÃ´ng cÃ³ khoáº£n chi liÃªn quan.</string>
-    <string name="friend_owes_me">Báº¡n cho ná»£</string>
-    <string name="i_owe_them">Báº¡n ná»£ há»</string>
-    <string name="tap_to_add_photo">Cháº¡m Ä‘á»ƒ thÃªm áº£nh</string>
-    <string name="home_empty_desc">Báº¯t Ä‘áº§u vá»›i khoáº£n chi Ä‘áº§u tiÃªn Ä‘á»ƒ lÆ°u láº¡i má»i giao dá»‹ch trong má»™t khÃ´ng gian gá»n gÃ ng.</string>
+    <string name="password">Mật khẩu</string>
+    <string name="confirm_password">Xác nhận mật khẩu</string>
+    <string name="please_wait">Vui lòng chờ</string>
+    <string name="create_account">Tạo tài khoản</string>
+    <string name="sign_in">Đăng nhập</string>
+    <string name="already_have_account">Đã có tài khoản?</string>
+    <string name="create_new_account">Tạo tài khoản mới</string>
+    <string name="friend_detail_title">Chi tiết nợ: %1$s</string>
+    <string name="no_related_expenses">Không có khoản chi liên quan.</string>
+    <string name="friend_owes_me">Bạn cho nợ</string>
+    <string name="i_owe_them">Bạn nợ họ</string>
+    <string name="tap_to_add_photo">Chạm để thêm ảnh</string>
+    <string name="home_empty_desc">Bắt đầu với khoản chi đầu tiên để lưu lại mọi giao dịch trong một không gian gọn gàng.</string>
+
+    <string name="credit_cards_title">Thẻ tín dụng</string>
+    <string name="payment_method_title">Phương thức thanh toán</string>
+    <string name="payment_cash">Tiền mặt</string>
+    <string name="payment_credit_card">Thẻ tín dụng</string>
+    <string name="credit_card_hint_empty">Hãy thêm thẻ tín dụng trước để gắn giao dịch bằng thẻ.</string>
+    <string name="credit_cards_empty_title">Chưa có thẻ tín dụng</string>
+    <string name="credit_cards_empty_desc">Thêm thẻ, đính kèm ảnh nếu cần và theo dõi từng kỳ sao kê riêng.</string>
+    <string name="credit_card_due_label">Cần thanh toán kỳ này</string>
+    <string name="credit_card_cycle_label">Đã chi trong kỳ hiện tại</string>
+    <string name="credit_card_due_date_text">Kỳ sao kê chốt ngày %1$s. Số tiền này đã sẵn sàng để thanh toán.</string>
+    <string name="credit_card_next_statement_text">Kỳ sao kê tiếp theo chốt vào %1$s.</string>
+    <string name="credit_card_transactions_title">Giao dịch bằng thẻ</string>
+    <string name="credit_card_delete_confirm">Xóa thẻ tín dụng này khỏi ứng dụng?</string>
+    <string name="credit_card_form_title">Thêm thẻ tín dụng</string>
+    <string name="credit_card_scan_hint">Chạm để scan hoặc đính kèm ảnh thẻ</string>
+    <string name="credit_card_name_label">Tên thẻ</string>
+    <string name="credit_card_holder_label">Tên chủ thẻ</string>
+    <string name="credit_card_last4_label">4 số cuối</string>
+    <string name="credit_card_statement_day_label">Ngày quyết toán (1-28)</string>
 </resources>

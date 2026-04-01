@@ -16,5 +16,6 @@ data class Expense(
     val isSplit: Boolean = false,
     val payerId: Long? = null, // null means "Me", otherwise it's a Friend ID
     val isSettled: Boolean = false,
-    val myShareCount: Int = 1 // How many shares "Me" is responsible for
+    val myShareCount: Int = 1, // How many shares "Me" is responsible for
+    val creditCardId: Long? = null
 )

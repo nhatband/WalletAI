@@ -15,8 +15,11 @@ import com.wallet.manager.R
 import com.wallet.manager.ai.GeminiBillParser
 import com.wallet.manager.data.local.db.AppDatabase
 import com.wallet.manager.data.local.db.ExpenseWithFriends
+import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.Friend
+import com.wallet.manager.data.repository.CreditCardRepository
+import com.wallet.manager.data.repository.CreditCardRepositoryImpl
 import com.wallet.manager.data.repository.ExpenseRepository
 import com.wallet.manager.data.repository.ExpenseRepositoryImpl
 import com.wallet.manager.data.repository.FriendRepository
@@ -54,13 +57,16 @@ data class HomeUiState(
     val isSplit: Boolean = false,
     val payerId: Long? = null, // null is "Me"
     val isSettled: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val allCreditCards: List<CreditCard> = emptyList(),
+    val selectedCreditCardId: Long? = null
 )
 
 class HomeViewModel(
     application: Application,
     private val repo: ExpenseRepository,
     private val friendRepo: FriendRepository,
+    private val creditCardRepo: CreditCardRepository,
     private val billParser: GeminiBillParser?
 ) : AndroidViewModel(application) {
 
@@ -69,8 +75,9 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = combine(
         repo.getAllExpensesWithFriends(),
         friendRepo.getAllFriends(),
+        creditCardRepo.getAllCards(),
         _uiState
-    ) { allExpenses, allFriends, currentState ->
+    ) { allExpenses, allFriends, allCreditCards, currentState ->
         val filtered = allExpenses.filter { item ->
             val expense = item.expense
             val matchesSearch = expense.title.contains(currentState.searchQuery, ignoreCase = true) ||
@@ -88,7 +95,8 @@ class HomeViewModel(
         currentState.copy(
             expenses = allExpenses,
             filteredExpenses = filtered,
-            allFriends = allFriends
+            allFriends = allFriends,
+            allCreditCards = allCreditCards
         )
     }.stateIn(
         scope = viewModelScope,
@@ -137,7 +145,8 @@ class HomeViewModel(
                 isSplit = false,
                 payerId = null,
                 isSettled = false,
-                errorMessage = null
+                errorMessage = null,
+                selectedCreditCardId = null
             ) 
         }
     }
@@ -161,7 +170,8 @@ class HomeViewModel(
                 isSplit = expense.isSplit,
                 payerId = expense.payerId,
                 isSettled = allSettled,
-                errorMessage = null
+                errorMessage = null,
+                selectedCreditCardId = expense.creditCardId
             )
         }
     }
@@ -181,6 +191,8 @@ class HomeViewModel(
         isMePayer: Boolean? = null,
         isSettled: Boolean? = null,
         myShareCount: Int? = null,
+        creditCardId: Long? = null,
+        setCreditCardSelection: Boolean = false,
         billImageUri: String? = null,
         clearBillImage: Boolean = false
     ) {
@@ -195,6 +207,7 @@ class HomeViewModel(
                 payerId = if (isMePayer == true) null else (payerId ?: it.payerId),
                 isSettled = isSettled ?: it.isSettled,
                 myShareCount = myShareCount ?: it.myShareCount,
+                selectedCreditCardId = if (setCreditCardSelection) creditCardId else it.selectedCreditCardId,
                 billImageUri = if (clearBillImage) null else (billImageUri ?: it.billImageUri),
                 errorMessage = null
             )
@@ -243,7 +256,8 @@ class HomeViewModel(
                 isSplit = isSplit,
                 payerId = state.payerId,
                 isSettled = state.isSettled,
-                myShareCount = state.myShareCount
+                myShareCount = state.myShareCount,
+                creditCardId = state.selectedCreditCardId
             )
             
             repo.addExpenseWithFriends(expense, validShares, state.isSettled)
@@ -340,6 +354,7 @@ class HomeViewModel(
                 val db = AppDatabase.get(application)
                 val repo = ExpenseRepositoryImpl(db.expenseDao())
                 val friendRepo = FriendRepositoryImpl(db.friendDao(), db.expenseDao())
+                val creditCardRepo = CreditCardRepositoryImpl(db.creditCardDao())
                 val securePrefs = SecurePrefsManager.getInstance(application)
                 val apiKey = securePrefs.getGeminiApiKey()
                 val billParser = try {
@@ -347,7 +362,7 @@ class HomeViewModel(
                 } catch (_: Throwable) {
                     null
                 }
-                HomeViewModel(application, repo, friendRepo, billParser)
+                HomeViewModel(application, repo, friendRepo, creditCardRepo, billParser)
             }
         }
     }

@@ -1,9 +1,24 @@
 package com.wallet.manager.ui.screen.settings
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -17,8 +32,8 @@ fun PasscodeDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var code by remember { mutableStateFlowOf("") }
-    var error by remember { mutableStateFlowOf<String?>(null) }
+    var code by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -31,11 +46,11 @@ fun PasscodeDialog(
             ) {
                 Text(title, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(16.dp))
-                
+
                 OutlinedTextField(
                     value = code,
-                    onValueChange = { 
-                        if (it.length <= 6 && it.all { char -> char.isDigit() }) {
+                    onValueChange = {
+                        if (it.length <= 6 && it.all(Char::isDigit)) {
                             code = it
                             error = null
                         }
@@ -45,16 +60,18 @@ fun PasscodeDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
                     isError = error != null,
-                    supportingText = { error?.let { Text(it) } }
+                    supportingText = { error?.let { msg -> Text(msg) } }
                 )
-                
+
                 Spacer(Modifier.height(24.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Hủy") }
+                    TextButton(onClick = onDismiss) {
+                        Text("Hủy")
+                    }
                     Button(
                         onClick = {
                             if (code.length == 6) {
@@ -71,5 +88,3 @@ fun PasscodeDialog(
         }
     }
 }
-
-private fun <T> mutableStateFlowOf(value: T) = mutableStateOf(value)
