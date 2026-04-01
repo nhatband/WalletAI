@@ -8,11 +8,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FriendDao {
+    @Query("SELECT COUNT(*) FROM friends")
+    suspend fun getFriendCount(): Int
+
     @Query("SELECT * FROM friends ORDER BY name ASC")
     fun getAllFriends(): Flow<List<Friend>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFriend(friend: Friend): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllFriends(friends: List<Friend>)
 
     @Update
     suspend fun updateFriend(friend: Friend)
@@ -36,6 +42,9 @@ interface FriendDao {
 
     @Query("SELECT * FROM friends WHERE phoneNumber = :phone LIMIT 1")
     suspend fun getFriendByPhone(phone: String): Friend?
+
+    @Query("DELETE FROM friends")
+    suspend fun deleteAllFriends()
 }
 
 data class FriendWithSpending(

@@ -321,8 +321,13 @@ class HomeViewModel(
                 } else {
                     _uiState.update { it.copy(isBillLoading = false) }
                 }
-            } catch (_: Exception) {
-                _uiState.update { it.copy(isBillLoading = false) }
+            } catch (_: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        isBillLoading = false,
+                        errorMessage = "Tinh nang AI hien khong kha dung do xung dot thu vien Ktor/Gemini."
+                    )
+                }
             }
         }
     }
@@ -337,7 +342,11 @@ class HomeViewModel(
                 val friendRepo = FriendRepositoryImpl(db.friendDao(), db.expenseDao())
                 val securePrefs = SecurePrefsManager.getInstance(application)
                 val apiKey = securePrefs.getGeminiApiKey()
-                val billParser = apiKey?.let { GeminiBillParser(it) }
+                val billParser = try {
+                    apiKey?.let { GeminiBillParser(it) }
+                } catch (_: Throwable) {
+                    null
+                }
                 HomeViewModel(application, repo, friendRepo, billParser)
             }
         }

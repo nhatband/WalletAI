@@ -49,8 +49,8 @@ class ExpenseRepositoryImpl(
         val expenseId = dao.upsertExpenseWithFriends(expense, friendShares, isSettled)
         try {
             supabaseService.syncExpense(expense.copy(id = expenseId))
-            friendShares.keys.forEach { friendId ->
-                supabaseService.syncExpenseFriendCrossRef(expenseId, friendId)
+            friendShares.forEach { (friendId, shareCount) ->
+                supabaseService.syncExpenseFriendCrossRef(expenseId, friendId, shareCount, isSettled)
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.wallet.manager.data.prefs.SettingsDataStore
+import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.secure.SecurePrefsManager
 import com.wallet.manager.ui.navigation.AppDestination
 import com.wallet.manager.ui.navigation.WalletApp
@@ -76,6 +77,10 @@ class MainActivity : AppCompatActivity() {
             val composeScope = rememberCoroutineScope()
 
             LaunchedEffect(Unit) {
+                runCatching {
+                    SupabaseRestoreManager.restoreIfLocalEmpty(applicationContext)
+                }
+
                 if (settings.requirePasscodeFlow.first()) {
                     isAppLocked = true
                     val useBio = settings.requireBiometricFlow.first()

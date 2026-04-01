@@ -1,8 +1,10 @@
 package com.wallet.manager.data.mapper
 
 import com.wallet.manager.data.local.entity.Expense
+import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
 import com.wallet.manager.data.local.entity.Friend
 import com.wallet.manager.data.remote.supabase.model.ExpenseDto
+import com.wallet.manager.data.remote.supabase.model.ExpenseFriendDto
 import com.wallet.manager.data.remote.supabase.model.FriendDto
 
 fun Expense.toDto() = ExpenseDto(
@@ -27,4 +29,35 @@ fun Friend.toDto() = FriendDto(
     image_uri = imageUri,
     total_owed = totalOwed,
     created_at = createdAt
+)
+
+fun ExpenseDto.toEntity() = Expense(
+    id = id ?: 0L,
+    type = type,
+    title = title,
+    content = content,
+    amount = amount,
+    date = date,
+    imageUri = image_uri,
+    createdAt = created_at,
+    isSplit = is_split,
+    payerId = payer_id,
+    isSettled = is_settled,
+    myShareCount = my_share_count
+)
+
+fun FriendDto.toEntity() = Friend(
+    id = id ?: 0L,
+    name = name,
+    phoneNumber = phone_number,
+    imageUri = image_uri,
+    totalOwed = total_owed,
+    createdAt = created_at
+)
+
+fun ExpenseFriendDto.toEntity() = ExpenseFriendCrossRef(
+    expenseId = expense_id,
+    friendId = friend_id,
+    shareCount = share_count,
+    isSettled = is_settled
 )

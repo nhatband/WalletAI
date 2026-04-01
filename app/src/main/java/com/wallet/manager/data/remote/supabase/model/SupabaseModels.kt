@@ -31,5 +31,7 @@ data class FriendDto(
 @Serializable
 data class ExpenseFriendDto(
     val expense_id: Long,
-    val friend_id: Long
+    val friend_id: Long,
+    val share_count: Int = 1,
+    val is_settled: Boolean = false
 )

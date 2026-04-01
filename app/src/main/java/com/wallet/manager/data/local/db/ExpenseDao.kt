@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExpenseDao {
+    @Query("SELECT COUNT(*) FROM expenses")
+    suspend fun getExpenseCount(): Int
 
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<Expense>>
@@ -42,6 +44,9 @@ interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(expense: Expense): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(expenses: List<Expense>)
+
     @Delete
     suspend fun delete(expense: Expense)
 
@@ -50,6 +55,12 @@ interface ExpenseDao {
 
     @Query("DELETE FROM expense_friend_cross_ref WHERE expenseId = :expenseId")
     suspend fun deleteFriendCrossRefsForExpense(expenseId: Long)
+
+    @Query("DELETE FROM expense_friend_cross_ref")
+    suspend fun deleteAllFriendCrossRefs()
+
+    @Query("DELETE FROM expenses")
+    suspend fun deleteAllExpenses()
     
     @Transaction
     suspend fun upsertExpenseWithFriends(expense: Expense, friendShares: Map<Long, Int>, isSettled: Boolean): Long {

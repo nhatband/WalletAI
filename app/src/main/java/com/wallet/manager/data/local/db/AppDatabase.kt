@@ -16,7 +16,7 @@ import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
         Friend::class, 
         ExpenseFriendCrossRef::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
