@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class ChatMessage(val isUser: Boolean, val text: String)
 
@@ -39,7 +42,8 @@ class ChatViewModel(
     private val repo: ExpenseRepository,
     private val friendRepo: FriendRepository,
     private val chatDao: ChatDao,
-    private val secure: SecurePrefsManager
+    private val secure: SecurePrefsManager,
+    private val db: AppDatabase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -98,19 +102,26 @@ class ChatViewModel(
                 val assistant = GeminiChatAssistant(currentKey)
                 val expensesWithFriends = repo.getAllExpensesWithFriends().first()
                 val allFriends = friendRepo.getAllFriends().first()
+                val allCards = db.creditCardDao().getAllCardsList()
                 val friendsMap = allFriends.associateBy { it.id }
+                val cardsMap = allCards.associateBy { it.id }
+                val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-                val arr = JSONArray()
+                val expensesJson = JSONArray()
                 expensesWithFriends.forEach { item ->
                     val expense = item.expense
                     val obj = JSONObject()
                     obj.put("id", expense.id)
                     obj.put("type", expense.type)
                     obj.put("title", expense.title)
+                    obj.put("content", expense.content)
                     obj.put("amount", expense.amount)
                     obj.put("date", expense.date)
+                    obj.put("dateLabel", dateFormatter.format(Date(expense.date)))
                     obj.put("isSplit", expense.isSplit)
                     obj.put("myShareCount", expense.myShareCount)
+                    obj.put("creditCardId", expense.creditCardId)
+                    obj.put("creditCardName", cardsMap[expense.creditCardId]?.name ?: JSONObject.NULL)
 
                     val payerName = if (expense.payerId == null) {
                         "Tôi"
@@ -131,39 +142,72 @@ class ChatViewModel(
                         }
                     }
                     obj.put("participants", participants)
-                    arr.put(obj)
+                    expensesJson.put(obj)
+                }
+
+                val creditCardsJson = JSONArray()
+                val creditCardTransactionsJson = JSONArray()
+                allCards.forEach { card ->
+                    val cardExpenses = expensesWithFriends
+                        .map { it.expense }
+                        .filter { it.creditCardId == card.id }
+                        .sortedByDescending { it.date }
+
+                    val now = java.util.Calendar.getInstance()
+                    val latestStatement = buildStatementDate(card.statementDay, now, latest = true)
+                    val previousStatement = buildStatementDate(card.statementDay, latestStatement, latest = true, monthOffset = -1)
+                    val nextStatement = buildStatementDate(card.statementDay, now, latest = false)
+                    val dueAmount = cardExpenses
+                        .filter { it.date > previousStatement.timeInMillis && it.date <= latestStatement.timeInMillis }
+                        .sumOf { it.amount }
+                    val currentCycleAmount = cardExpenses
+                        .filter { it.date > latestStatement.timeInMillis && it.date <= now.timeInMillis }
+                        .sumOf { it.amount }
+
+                    val cardObj = JSONObject()
+                    cardObj.put("id", card.id)
+                    cardObj.put("name", card.name)
+                    cardObj.put("holderName", card.holderName)
+                    cardObj.put("last4Digits", card.last4Digits)
+                    cardObj.put("statementDay", card.statementDay)
+                    cardObj.put("latestStatementDate", dateFormatter.format(Date(latestStatement.timeInMillis)))
+                    cardObj.put("nextStatementDate", dateFormatter.format(Date(nextStatement.timeInMillis)))
+                    cardObj.put("dueAmount", dueAmount)
+                    cardObj.put("currentCycleAmount", currentCycleAmount)
+                    creditCardsJson.put(cardObj)
+
+                    cardExpenses.forEach { expense ->
+                        val tx = JSONObject()
+                        tx.put("creditCardId", card.id)
+                        tx.put("creditCardName", card.name)
+                        tx.put("title", expense.title)
+                        tx.put("amount", expense.amount)
+                        tx.put("date", expense.date)
+                        tx.put("dateLabel", dateFormatter.format(Date(expense.date)))
+                        tx.put("type", expense.type)
+                        creditCardTransactionsJson.put(tx)
+                    }
                 }
 
                 val summary = JSONObject()
-                summary.put("expenses", arr)
+                summary.put("expenses", expensesJson)
+                summary.put("credit_cards", creditCardsJson)
+                summary.put("credit_card_transactions", creditCardTransactionsJson)
                 summary.put(
                     "instruction",
                     """
-                    Bạn là một trợ lý tài chính cá nhân thân thiện, thông minh tên là "Ví Thông Minh".
-                    Nhiệm vụ của bạn là giúp người dùng phân tích nợ nần và chi tiêu một cách dễ hiểu, gần gũi như một người bạn.
+                    Dữ liệu đã được chia thành 3 nhóm:
+                    1. expenses: toàn bộ chi tiêu
+                    2. credit_cards: thông tin từng thẻ tín dụng và tổng tiền theo kỳ
+                    3. credit_card_transactions: các giao dịch có gắn thẻ tín dụng
 
-                    PHONG CÁCH TRẢ LỜI:
-                    - Thân thiện, tự nhiên, dễ đọc.
-                    - Có thể dùng emoji phù hợp để câu trả lời sinh động hơn.
-                    - Ưu tiên giải thích rõ ai nợ ai, số tiền bao nhiêu, khoản nào đã thanh toán và khoản nào chưa.
-                    - Nếu có nhiều số liệu, hãy trình bày thành danh sách ngắn gọn.
+                    Khi câu hỏi nói về "tín dụng", "thẻ tín dụng", "sao kê", "giao dịch thẻ", "chi tiêu bằng thẻ":
+                    - Chỉ đọc credit_cards và credit_card_transactions.
+                    - Không kéo sang phân tích nợ/chia tiền nếu người dùng không hỏi.
 
-                    DỮ LIỆU PHÂN TÍCH:
-                    $arr
-
-                    QUY TẮC TÍNH TOÁN:
-                    1. Mỗi chi tiêu có tổng số suất = myShareCount + tổng shareCount của các participants.
-                    2. Số tiền mỗi suất = amount / tổng số suất.
-                    3. Nếu người trả là "Tôi":
-                       - Bạn bè trong participants nợ "Tôi" số tiền = số suất của họ * số tiền mỗi suất.
-                       - Nếu isSettled = true: họ đã trả rồi.
-                       - Nếu isSettled = false: họ vẫn còn nợ.
-                    4. Nếu người trả là một người bạn:
-                       - "Tôi" nợ người đó số tiền = myShareCount * số tiền mỗi suất.
-                       - Nếu isSettled = true: tôi đã trả rồi.
-                       - Nếu isSettled = false: tôi vẫn còn nợ.
-
-                    Hãy trả lời câu hỏi của người dùng dựa trên dữ liệu trên. Nếu người dùng chỉ chào hỏi, hãy giới thiệu bản thân ngắn gọn và thân thiện.
+                    Khi câu hỏi nói về "nợ", "chia tiền", "ai nợ ai":
+                    - Chỉ đọc expenses cùng participants/payer/isSettled.
+                    - Không kéo sang thẻ tín dụng nếu người dùng không hỏi.
                     """.trimIndent()
                 )
 
@@ -182,6 +226,34 @@ class ChatViewModel(
         }
     }
 
+    private fun buildStatementDate(
+        statementDay: Int,
+        reference: java.util.Calendar,
+        latest: Boolean,
+        monthOffset: Int = 0
+    ): java.util.Calendar {
+        val cal = (reference.clone() as java.util.Calendar).apply {
+            add(java.util.Calendar.MONTH, monthOffset)
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+            set(java.util.Calendar.MILLISECOND, 999)
+            val maxDay = getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+            set(java.util.Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(maxDay))
+        }
+        if (latest && cal.after(reference)) {
+            cal.add(java.util.Calendar.MONTH, -1)
+            val maxDay = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+            cal.set(java.util.Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(maxDay))
+        }
+        if (!latest && !cal.after(reference)) {
+            cal.add(java.util.Calendar.MONTH, 1)
+            val maxDay = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+            cal.set(java.util.Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(maxDay))
+        }
+        return cal
+    }
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -193,7 +265,7 @@ class ChatViewModel(
                 val friendRepo: FriendRepository = FriendRepositoryImpl(db.friendDao(), db.expenseDao())
                 val chatDao = db.chatDao()
                 val secure = SecurePrefsManager.getInstance(appContext)
-                ChatViewModel(repo, friendRepo, chatDao, secure)
+                ChatViewModel(repo, friendRepo, chatDao, secure, db)
             }
         }
     }
