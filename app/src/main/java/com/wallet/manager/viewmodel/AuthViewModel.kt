@@ -9,8 +9,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.prefs.SettingsDataStore
 import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
+import com.wallet.manager.util.NetworkUtils
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,12 +57,20 @@ class AuthViewModel(
 
     fun submit() {
         val state = _uiState.value
+        val application = getApplication<Application>()
+
         if (state.email.isBlank() || state.password.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Vui lòng nhập email và mật khẩu.") }
             return
         }
         if (state.isRegister && state.password != state.confirmPassword) {
             _uiState.update { it.copy(errorMessage = "Mật khẩu xác nhận không khớp.") }
+            return
+        }
+        if (!NetworkUtils.isInternetAvailable(application)) {
+            _uiState.update {
+                it.copy(errorMessage = "Không có kết nối Internet. Vui lòng kiểm tra mạng và thử lại.")
+            }
             return
         }
 
@@ -82,33 +94,22 @@ class AuthViewModel(
 
                 if (SupabaseConfig.client.auth.currentSessionOrNull() == null) {
                     throw IllegalStateException(
-                        "Phiên đăng nhập chưa được tạo. Có thể Supabase đang yêu cầu xác nhận email trước khi đăng nhập."
+                        "Phiên đăng nhập chưa được tạo. Có thể hệ thống đang yêu cầu xác nhận email trước khi đăng nhập."
                     )
                 }
 
                 if (previousEmail != null && previousEmail != trimmedEmail) {
-                    SupabaseRestoreManager.clearLocalData(getApplication())
+                    SupabaseRestoreManager.clearLocalData(application)
                 }
 
                 settings.resetCloudRestoreState()
                 settings.setSignedIn(trimmedEmail)
-                runCatching { SupabaseRestoreManager.refreshForSignedInUser(getApplication()) }
+                runCatching { SupabaseRestoreManager.refreshForSignedInUser(application) }
             }.onFailure { throwable ->
-                val friendlyMessage = when {
-                    throwable.message?.contains("Anonymous sign-ins are disabled", ignoreCase = true) == true ->
-                        "Supabase đang hiểu request đăng ký sai kiểu xác thực. Hãy thử lại sau khi build bản mới."
-                    throwable.message?.contains("Phiên đăng nhập chưa được tạo", ignoreCase = true) == true ->
-                        "Tài khoản có thể đã tạo nhưng chưa có session đăng nhập. Hãy kiểm tra cấu hình xác nhận email trong Supabase Auth."
-                    throwable.message?.contains("User already registered", ignoreCase = true) == true ->
-                        "Email này đã được đăng ký."
-                    throwable.message?.contains("Invalid login credentials", ignoreCase = true) == true ->
-                        "Email hoặc mật khẩu không đúng."
-                    else -> throwable.message ?: "Xác thực thất bại."
-                }
                 _uiState.update {
                     it.copy(
                         isSubmitting = false,
-                        errorMessage = friendlyMessage
+                        errorMessage = throwable.toFriendlyAuthMessage()
                     )
                 }
             }.onSuccess {
@@ -121,6 +122,39 @@ class AuthViewModel(
                     )
                 }
             }
+        }
+    }
+
+    private fun Throwable.toFriendlyAuthMessage(): String {
+        val fullMessage = buildString {
+            append(message.orEmpty())
+            generateSequence(cause) { it.cause }
+                .mapNotNull { it.message }
+                .filter { it.isNotBlank() }
+                .forEach {
+                    append('\n')
+                    append(it)
+                }
+        }
+
+        return when {
+            this is UnknownHostException ||
+                this is SocketTimeoutException ||
+                this is IOException ||
+                fullMessage.contains("Unable to resolve host", ignoreCase = true) ||
+                fullMessage.contains("No address associated with hostname", ignoreCase = true) ||
+                fullMessage.contains("timeout", ignoreCase = true) ||
+                fullMessage.contains("network", ignoreCase = true) ->
+                "Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng và thử lại."
+            fullMessage.contains("Anonymous sign-ins are disabled", ignoreCase = true) ->
+                "Hệ thống đăng ký đang tạm thời gặp sự cố. Vui lòng thử lại sau."
+            fullMessage.contains("Phiên đăng nhập chưa được tạo", ignoreCase = true) ->
+                "Tài khoản có thể chưa sẵn sàng để đăng nhập. Vui lòng thử lại sau."
+            fullMessage.contains("User already registered", ignoreCase = true) ->
+                "Email này đã được đăng ký."
+            fullMessage.contains("Invalid login credentials", ignoreCase = true) ->
+                "Email hoặc mật khẩu không đúng."
+            else -> "Xác thực thất bại. Vui lòng thử lại."
         }
     }
 
