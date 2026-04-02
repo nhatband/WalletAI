@@ -1,7 +1,7 @@
 # Ví Thông Minh
 
 <p align="center">
-  <img src="app/src/main/res/drawable/image_0.jpg" alt="Ví Thông Minh" width="320" />
+  <img src="https://github.com/nhatband/WalletAI/blob/main/app/src/main/res/drawable/image_0.jpg" alt="Ví Thông Minh" width="320" />
 </p>
 
 <p align="center">
