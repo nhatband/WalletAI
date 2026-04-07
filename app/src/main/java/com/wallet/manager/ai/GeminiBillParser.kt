@@ -51,16 +51,11 @@ class GeminiBillParser(
             )
 
         val requestBody = JSONObject()
+            .put("generationConfig", JSONObject().put("responseMimeType", "application/json"))
             .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
 
         val responseText = GeminiRestClient.generateContent(apiKey, requestBody)
-        val jsonText = GeminiRestClient.extractText(responseText)
-            ?.trim()
-            ?.removePrefix("```json")
-            ?.removePrefix("```")
-            ?.removeSuffix("```")
-            ?.trim()
-            ?: return@withContext null
+        val jsonText = GeminiRestClient.extractJsonText(responseText) ?: return@withContext null
 
         val json = JSONObject(jsonText)
         ParsedBill(
@@ -68,13 +63,13 @@ class GeminiBillParser(
             title = json.optString("title"),
             content = json.optString("content"),
             amount = json.optDouble("amount"),
-            dateMillis = json.optLong("dateMillis")
+            dateMillis = json.optLong("dateMillis").takeIf { it > 0L } ?: System.currentTimeMillis()
         )
     }
 }
 
 internal object GeminiRestClient {
-    private const val MODEL = "gemini-3.1-flash-lite-preview"
+    private const val MODEL = "gemini-2.5-flash-lite"
 
     fun generateContent(apiKey: String, body: JSONObject): String {
         val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$apiKey")
@@ -105,6 +100,32 @@ internal object GeminiRestClient {
         val content = candidates.optJSONObject(0)?.optJSONObject("content") ?: return null
         val parts = content.optJSONArray("parts") ?: return null
         if (parts.length() == 0) return null
-        return parts.optJSONObject(0)?.optString("text")
+        return buildString {
+            for (index in 0 until parts.length()) {
+                val text = parts.optJSONObject(index)?.optString("text").orEmpty()
+                if (text.isNotBlank()) {
+                    if (isNotEmpty()) append('\n')
+                    append(text)
+                }
+            }
+        }.ifBlank { null }
+    }
+
+    fun extractJsonText(rawResponse: String): String? {
+        val text = extractText(rawResponse)?.trim() ?: return null
+        val cleaned = text
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+
+        if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+            return cleaned
+        }
+
+        val start = cleaned.indexOf('{')
+        val end = cleaned.lastIndexOf('}')
+        if (start == -1 || end <= start) return null
+        return cleaned.substring(start, end + 1)
     }
 }

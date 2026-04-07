@@ -403,7 +403,11 @@ private fun ExpenseBottomSheet(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Toast.makeText(context, context.getString(R.string.camera_permission_granted), Toast.LENGTH_SHORT).show()
+            val file = File(context.cacheDir, "images/temp_bill_${System.currentTimeMillis()}.jpg")
+            file.parentFile?.mkdirs()
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            cameraUri = uri
+            cameraLauncher.launch(uri)
         } else {
             Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
         }

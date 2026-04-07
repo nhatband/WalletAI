@@ -310,13 +310,29 @@ class HomeViewModel(
                 // Automatically trigger AI parsing
                 parseBillFromBitmap(bitmap, uri.toString())
             } catch (e: Exception) {
-                e.printStackTrace()
+                _uiState.update {
+                    it.copy(
+                        billImageUri = uri.toString(),
+                        isBillLoading = false,
+                        errorMessage = "Khong doc duoc anh bill. Vui long thu lai voi anh ro hon."
+                    )
+                }
             }
         }
     }
 
     fun parseBillFromBitmap(bitmap: Bitmap, imageUri: String?) {
-        val parser = billParser ?: return
+        val parser = billParser
+        if (parser == null) {
+            _uiState.update {
+                it.copy(
+                    isBillLoading = false,
+                    billImageUri = imageUri,
+                    errorMessage = "Chua cau hinh Gemini API key trong Settings."
+                )
+            }
+            return
+        }
         viewModelScope.launch {
             _uiState.update { it.copy(isBillLoading = true, billImageUri = imageUri) }
             try {
@@ -329,20 +345,46 @@ class HomeViewModel(
                             manualContent = parsed.content,
                             manualAmount = parsed.amount.toLong().toString(),
                             manualDateMillis = parsed.dateMillis,
-                            isBillLoading = false
+                            isBillLoading = false,
+                            errorMessage = null
                         )
                     }
                 } else {
-                    _uiState.update { it.copy(isBillLoading = false) }
+                    _uiState.update {
+                        it.copy(
+                            isBillLoading = false,
+                            errorMessage = "AI khong doc duoc thong tin tu anh nay. Thu anh ro hon hoac nhap tay."
+                        )
+                    }
                 }
-            } catch (_: Throwable) {
+            } catch (error: Throwable) {
                 _uiState.update {
                     it.copy(
                         isBillLoading = false,
-                        errorMessage = "Tinh nang AI hien khong kha dung do xung dot thu vien Ktor/Gemini."
+                        errorMessage = error.toUserFriendlyMessage()
                     )
                 }
             }
+        }
+    }
+
+    private fun Throwable.toUserFriendlyMessage(): String {
+        val raw = message.orEmpty()
+        val lower = raw.lowercase()
+        return when {
+            lower.contains("api key") || lower.contains("permission denied") || lower.contains("unauthorized") -> {
+                "Gemini API key khong hop le hoac da het quyen."
+            }
+            lower.contains("not found") || lower.contains("models/") -> {
+                "Model AI dang cau hinh khong con ho tro."
+            }
+            lower.contains("deadline") || lower.contains("timeout") -> {
+                "Ket noi den AI bi timeout. Vui long thu lai."
+            }
+            raw.isNotBlank() -> {
+                "Phan tich bill that bai: ${raw.take(180)}"
+            }
+            else -> "Phan tich bill that bai. Vui long thu lai."
         }
     }
 
