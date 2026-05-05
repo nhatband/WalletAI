@@ -157,8 +157,8 @@ class FriendsViewModel(
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as? Application
                     ?: throw IllegalArgumentException("Application context missing")
                 val db = AppDatabase.get(application)
-                val repo = FriendRepositoryImpl(db.friendDao(), db.expenseDao())
-                val expenseRepo = ExpenseRepositoryImpl(db.expenseDao())
+                val repo = FriendRepositoryImpl(db.friendDao(), db.expenseDao(), application)
+                val expenseRepo = ExpenseRepositoryImpl(db.expenseDao(), application)
                 FriendsViewModel(application, repo, expenseRepo)
             }
         }

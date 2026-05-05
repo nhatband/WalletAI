@@ -7,11 +7,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.prefs.SettingsDataStore
+import com.wallet.manager.data.remote.supabase.CloudSyncManager
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.secure.SecurePrefsManager
 import io.github.jan.supabase.auth.auth
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -252,7 +252,8 @@ class SettingsViewModel(
             _isCloudSyncing.value = true
             _cloudSyncMessage.value = null
             val pushed = runCatching {
-                SupabaseRestoreManager.pushLocalToCloud(application.applicationContext)
+                CloudSyncManager.markPending(application.applicationContext)
+                CloudSyncManager.syncNow(application.applicationContext)
             }.getOrElse {
                 _cloudSyncMessage.value = it.message ?: "Cloud upload failed"
                 _isCloudSyncing.value = false
@@ -263,7 +264,7 @@ class SettingsViewModel(
                 settings.setLastCloudSyncAt(System.currentTimeMillis())
                 _cloudSyncMessage.value = "Local data uploaded to cloud"
             } else {
-                _cloudSyncMessage.value = "Local database is empty"
+                _cloudSyncMessage.value = "No local changes uploaded"
             }
             _isCloudSyncing.value = false
         }

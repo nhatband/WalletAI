@@ -5,9 +5,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -20,6 +22,10 @@ class SettingsDataStore(private val context: Context) {
     private val KEY_LANGUAGE = stringPreferencesKey("language")
     private val KEY_AUTO_RESTORE_DONE = booleanPreferencesKey("auto_restore_done")
     private val KEY_LAST_CLOUD_SYNC_AT = longPreferencesKey("last_cloud_sync_at")
+    private val KEY_PENDING_CLOUD_SYNC = booleanPreferencesKey("pending_cloud_sync")
+    private val KEY_PENDING_DELETED_EXPENSE_IDS = stringSetPreferencesKey("pending_deleted_expense_ids")
+    private val KEY_PENDING_DELETED_FRIEND_IDS = stringSetPreferencesKey("pending_deleted_friend_ids")
+    private val KEY_PENDING_DELETED_CARD_IDS = stringSetPreferencesKey("pending_deleted_card_ids")
     private val KEY_IS_SIGNED_IN = booleanPreferencesKey("is_signed_in")
     private val KEY_SIGNED_IN_EMAIL = stringPreferencesKey("signed_in_email")
 
@@ -49,6 +55,10 @@ class SettingsDataStore(private val context: Context) {
 
     val lastCloudSyncAtFlow: Flow<Long?> = context.dataStore.data.map { prefs: Preferences ->
         prefs[KEY_LAST_CLOUD_SYNC_AT]
+    }
+
+    val pendingCloudSyncFlow: Flow<Boolean> = context.dataStore.data.map { prefs: Preferences ->
+        prefs[KEY_PENDING_CLOUD_SYNC] ?: false
     }
 
     val isSignedInFlow: Flow<Boolean> = context.dataStore.data.map { prefs: Preferences ->
@@ -95,6 +105,57 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    suspend fun markCloudSyncPending() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PENDING_CLOUD_SYNC] = true
+        }
+    }
+
+    suspend fun clearCloudSyncPending() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PENDING_CLOUD_SYNC] = false
+            prefs.remove(KEY_PENDING_DELETED_EXPENSE_IDS)
+            prefs.remove(KEY_PENDING_DELETED_FRIEND_IDS)
+            prefs.remove(KEY_PENDING_DELETED_CARD_IDS)
+        }
+    }
+
+    suspend fun addPendingDeletedExpenseId(id: Long) {
+        addPendingDeletedId(KEY_PENDING_DELETED_EXPENSE_IDS, id)
+    }
+
+    suspend fun addPendingDeletedFriendId(id: Long) {
+        addPendingDeletedId(KEY_PENDING_DELETED_FRIEND_IDS, id)
+    }
+
+    suspend fun addPendingDeletedCardId(id: Long) {
+        addPendingDeletedId(KEY_PENDING_DELETED_CARD_IDS, id)
+    }
+
+    suspend fun pendingDeletedExpenseIds(): Set<Long> =
+        readPendingDeletedIds(KEY_PENDING_DELETED_EXPENSE_IDS)
+
+    suspend fun pendingDeletedFriendIds(): Set<Long> =
+        readPendingDeletedIds(KEY_PENDING_DELETED_FRIEND_IDS)
+
+    suspend fun pendingDeletedCardIds(): Set<Long> =
+        readPendingDeletedIds(KEY_PENDING_DELETED_CARD_IDS)
+
+    private suspend fun addPendingDeletedId(key: Preferences.Key<Set<String>>, id: Long) {
+        if (id <= 0L) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[key].orEmpty()
+            prefs[key] = current + id.toString()
+            prefs[KEY_PENDING_CLOUD_SYNC] = true
+        }
+    }
+
+    private suspend fun readPendingDeletedIds(key: Preferences.Key<Set<String>>): Set<Long> =
+        context.dataStore.data.first()[key]
+            .orEmpty()
+            .mapNotNull { it.toLongOrNull() }
+            .toSet()
+
     suspend fun setSignedIn(email: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_IS_SIGNED_IN] = true
@@ -113,6 +174,10 @@ class SettingsDataStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[KEY_AUTO_RESTORE_DONE] = false
             prefs.remove(KEY_LAST_CLOUD_SYNC_AT)
+            prefs.remove(KEY_PENDING_CLOUD_SYNC)
+            prefs.remove(KEY_PENDING_DELETED_EXPENSE_IDS)
+            prefs.remove(KEY_PENDING_DELETED_FRIEND_IDS)
+            prefs.remove(KEY_PENDING_DELETED_CARD_IDS)
         }
     }
 }

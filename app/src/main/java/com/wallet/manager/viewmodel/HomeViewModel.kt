@@ -39,6 +39,7 @@ data class HomeUiState(
     val expenses: List<ExpenseWithFriends> = emptyList(),
     val filteredExpenses: List<ExpenseWithFriends> = emptyList(),
     val isBottomSheetOpen: Boolean = false,
+    val isSaving: Boolean = false,
     val isBillLoading: Boolean = false,
     val manualTransactionKind: String = TRANSACTION_KIND_EXPENSE,
     val manualType: String = "Ăn uống",
@@ -187,7 +188,8 @@ class HomeViewModel(
                 payerId = null,
                 isSettled = false,
                 errorMessage = null,
-                selectedCreditCardId = null
+                selectedCreditCardId = null,
+                isSaving = false
             ) 
         }
     }
@@ -213,13 +215,14 @@ class HomeViewModel(
                 payerId = expense.payerId,
                 isSettled = allSettled,
                 errorMessage = null,
-                selectedCreditCardId = expense.creditCardId
+                selectedCreditCardId = expense.creditCardId,
+                isSaving = false
             )
         }
     }
 
     fun closeBottomSheet() {
-        _uiState.update { it.copy(isBottomSheetOpen = false) }
+        _uiState.update { it.copy(isBottomSheetOpen = false, isSaving = false) }
     }
 
     fun onManualFieldChange(
@@ -279,10 +282,13 @@ class HomeViewModel(
     }
 
     fun saveExpense(imageUri: String?) {
-        val state = _uiState.value
-        val amount = state.manualAmount.toDoubleOrNull() ?: return
+        val current = _uiState.value
+        if (current.isSaving) return
+        val amount = current.manualAmount.toDoubleOrNull() ?: return
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         
         viewModelScope.launch {
+            val state = _uiState.value
             val isIncome = state.manualTransactionKind == TRANSACTION_KIND_INCOME
             val validShares = if (isIncome) emptyMap() else state.selectedFriendShares
             val isSplit = !isIncome && validShares.isNotEmpty()
@@ -303,15 +309,25 @@ class HomeViewModel(
                 myShareCount = if (isIncome) 1 else state.myShareCount,
                 creditCardId = if (isIncome) null else state.selectedCreditCardId
             )
-            
-            repo.addExpenseWithFriends(expense, validShares, state.isSettled)
-            
-            _uiState.update {
-                it.copy(
-                    isBottomSheetOpen = false,
-                    editingExpenseId = null,
-                    selectedFriendShares = emptyMap()
-                )
+
+            runCatching {
+                repo.addExpenseWithFriends(expense, validShares, state.isSettled)
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(
+                        isBottomSheetOpen = false,
+                        editingExpenseId = null,
+                        selectedFriendShares = emptyMap(),
+                        isSaving = false
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        errorMessage = error.message ?: "Lưu thất bại, vui lòng thử lại.",
+                        isSaving = false
+                    )
+                }
             }
         }
     }
@@ -438,9 +454,9 @@ class HomeViewModel(
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as? Application
                     ?: throw IllegalArgumentException("Application context missing")
                 val db = AppDatabase.get(application)
-                val repo = ExpenseRepositoryImpl(db.expenseDao())
-                val friendRepo = FriendRepositoryImpl(db.friendDao(), db.expenseDao())
-                val creditCardRepo = CreditCardRepositoryImpl(db.creditCardDao())
+                val repo = ExpenseRepositoryImpl(db.expenseDao(), application)
+                val friendRepo = FriendRepositoryImpl(db.friendDao(), db.expenseDao(), application)
+                val creditCardRepo = CreditCardRepositoryImpl(db.creditCardDao(), application, db.expenseDao())
                 val securePrefs = SecurePrefsManager.getInstance(application)
                 val apiKey = securePrefs.getGeminiApiKey()
                 val billParser = try {

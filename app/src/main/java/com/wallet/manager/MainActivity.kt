@@ -2,6 +2,9 @@ package com.wallet.manager
 
 import android.content.Context
 import android.content.res.Configuration
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivityResultRegistryOwner
@@ -29,8 +32,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.wallet.manager.data.prefs.SettingsDataStore
+import com.wallet.manager.data.remote.supabase.CloudSyncManager
 import com.wallet.manager.data.remote.supabase.SupabaseConfig
 import com.wallet.manager.data.remote.supabase.SupabaseRestoreManager
 import com.wallet.manager.data.secure.SecurePrefsManager
@@ -45,6 +50,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
+    private var syncNetworkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Kích hoạt Splash Screen (hiển thị icon ví to và tên app theo theme)
@@ -175,6 +181,52 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        lifecycleScope.launch {
+            runCatching { CloudSyncManager.syncPendingIfPossible(applicationContext) }
+        }
+        registerCloudSyncNetworkCallback()
+    }
+
+    override fun onStop() {
+        unregisterCloudSyncNetworkCallback()
+        super.onStop()
+    }
+
+    private fun registerCloudSyncNetworkCallback() {
+        if (syncNetworkCallback != null) return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                lifecycleScope.launch {
+                    runCatching { CloudSyncManager.syncPendingIfPossible(applicationContext) }
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    lifecycleScope.launch {
+                        runCatching { CloudSyncManager.syncPendingIfPossible(applicationContext) }
+                    }
+                }
+            }
+        }
+        runCatching {
+            connectivityManager.registerDefaultNetworkCallback(callback)
+            syncNetworkCallback = callback
+        }
+    }
+
+    private fun unregisterCloudSyncNetworkCallback() {
+        val callback = syncNetworkCallback ?: return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        syncNetworkCallback = null
     }
 
     private fun showBiometricGate(onSuccess: () -> Unit, onFallback: () -> Unit) {

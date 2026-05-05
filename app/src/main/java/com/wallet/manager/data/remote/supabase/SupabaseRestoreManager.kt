@@ -30,7 +30,10 @@ object SupabaseRestoreManager {
             return@withContext false
         }
 
-        clearLocalData(context)
+        if (settings.pendingCloudSyncFlow.first()) {
+            return@withContext CloudSyncManager.syncPendingIfPossible(context)
+        }
+
         val restored = restoreFromCloud(context, onlyWhenLocalEmpty = false)
         settings.setAutoRestoreDone(true)
         if (restored) {
@@ -43,7 +46,8 @@ object SupabaseRestoreManager {
         val settings = SettingsDataStore(context)
         val isSignedIn = settings.isSignedInFlow.first()
         val autoRestoreDone = settings.autoRestoreDoneFlow.first()
-        if (!isSignedIn || autoRestoreDone) return@withContext
+        val hasPendingSync = settings.pendingCloudSyncFlow.first()
+        if (!isSignedIn || autoRestoreDone || hasPendingSync) return@withContext
 
         val restored = restoreFromCloud(context, onlyWhenLocalEmpty = true)
         settings.setAutoRestoreDone(true)
@@ -71,8 +75,9 @@ object SupabaseRestoreManager {
         val remoteFriends = service.fetchFriends()
         val remoteExpenses = service.fetchExpenses()
         val expenseIds = remoteExpenses.mapNotNull { it.id }.toSet()
+        val friendIds = remoteFriends.mapNotNull { it.id }.toSet()
         val remoteCrossRefs = service.fetchExpenseFriendCrossRefs()
-            .filter { it.expense_id in expenseIds }
+            .filter { it.expense_id in expenseIds && it.friend_id in friendIds }
 
         if (remoteCreditCards.isEmpty() && remoteFriends.isEmpty() && remoteExpenses.isEmpty() && remoteCrossRefs.isEmpty()) {
             return@withContext false
@@ -110,7 +115,10 @@ object SupabaseRestoreManager {
         val creditCards = creditCardDao.getAllCardsList()
         val friends = friendDao.getAllFriendsList()
         val expenses = expenseDao.getAllExpensesList()
+        val expenseIds = expenses.map { it.id }.toSet()
+        val friendIds = friends.map { it.id }.toSet()
         val crossRefs = expenseDao.getAllFriendCrossRefsList()
+            .filter { it.expenseId in expenseIds && it.friendId in friendIds }
 
         if (creditCards.isEmpty() && friends.isEmpty() && expenses.isEmpty() && crossRefs.isEmpty()) {
             return@withContext false
@@ -124,6 +132,7 @@ object SupabaseRestoreManager {
         }
         expenses.forEach { expense ->
             service.syncExpense(expense)
+            service.deleteExpenseFriendCrossRefsForExpense(expense.id)
         }
         crossRefs.forEach { crossRef: ExpenseFriendCrossRef ->
             service.syncExpenseFriendCrossRef(

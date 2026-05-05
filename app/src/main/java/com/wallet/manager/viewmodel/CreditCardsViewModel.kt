@@ -224,8 +224,8 @@ class CreditCardsViewModel(
                         ?: throw IllegalArgumentException("Application context missing")
                 val db = AppDatabase.get(appContext)
                 CreditCardsViewModel(
-                    cardRepo = CreditCardRepositoryImpl(db.creditCardDao()),
-                    expenseRepo = ExpenseRepositoryImpl(db.expenseDao())
+                    cardRepo = CreditCardRepositoryImpl(db.creditCardDao(), appContext, db.expenseDao()),
+                    expenseRepo = ExpenseRepositoryImpl(db.expenseDao(), appContext)
                 )
             }
         }

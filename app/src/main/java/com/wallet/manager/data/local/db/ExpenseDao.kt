@@ -62,6 +62,9 @@ interface ExpenseDao {
     @Query("DELETE FROM expense_friend_cross_ref WHERE expenseId = :expenseId")
     suspend fun deleteFriendCrossRefsForExpense(expenseId: Long)
 
+    @Query("DELETE FROM expense_friend_cross_ref WHERE friendId = :friendId")
+    suspend fun deleteFriendCrossRefsForFriend(friendId: Long)
+
     @Query("DELETE FROM expense_friend_cross_ref")
     suspend fun deleteAllFriendCrossRefs()
 
@@ -84,6 +87,12 @@ interface ExpenseDao {
 
     @Query("UPDATE expense_friend_cross_ref SET isSettled = 1 WHERE friendId = :friendId")
     suspend fun settleAllForFriend(friendId: Long)
+
+    @Query("UPDATE expenses SET creditCardId = NULL WHERE creditCardId = :creditCardId")
+    suspend fun clearCreditCardForExpenses(creditCardId: Long)
+
+    @Query("UPDATE expenses SET payerId = NULL WHERE payerId = :friendId")
+    suspend fun clearPayerForFriend(friendId: Long)
 
     @Transaction
     @Query("""

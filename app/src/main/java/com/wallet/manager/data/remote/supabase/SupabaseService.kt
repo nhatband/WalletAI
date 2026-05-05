@@ -70,6 +70,24 @@ class SupabaseService {
         }
     }
 
+    suspend fun deleteExpenseFriendCrossRefsForExpense(expenseId: Long) = withContext(Dispatchers.IO) {
+        SupabaseConfig.ensureAuthenticated()
+        client.postgrest["expense_friend_cross_ref"].delete {
+            filter {
+                eq("expense_id", expenseId)
+            }
+        }
+    }
+
+    suspend fun deleteExpenseFriendCrossRefsForFriend(friendId: Long) = withContext(Dispatchers.IO) {
+        SupabaseConfig.ensureAuthenticated()
+        client.postgrest["expense_friend_cross_ref"].delete {
+            filter {
+                eq("friend_id", friendId)
+            }
+        }
+    }
+
     suspend fun fetchFriends(): List<FriendDto> = withContext(Dispatchers.IO) {
         SupabaseConfig.ensureAuthenticated()
         client.postgrest["friends"].select {

@@ -566,9 +566,22 @@ private fun ExpenseBottomSheet(
                     Button(
                         onClick = { vm.saveExpense(state.billImageUri) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = state.manualAmount.isNotEmpty() && state.manualTitle.isNotEmpty()
+                        enabled = state.manualAmount.isNotEmpty() && state.manualTitle.isNotEmpty() && !state.isSaving
                     ) {
-                        Text(stringResource(R.string.save))
+                        if (state.isSaving) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Text(stringResource(R.string.please_wait))
+                            }
+                        } else {
+                            Text(stringResource(R.string.save))
+                        }
                     }
                 }
                 
