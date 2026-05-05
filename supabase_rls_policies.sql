@@ -4,6 +4,9 @@ alter table if exists public.expenses
 add column if not exists credit_card_id bigint null;
 
 alter table if exists public.expenses
+add column if not exists transaction_kind text not null default 'expense';
+
+alter table if exists public.expenses
 add column if not exists user_id uuid;
 
 alter table if exists public.friends

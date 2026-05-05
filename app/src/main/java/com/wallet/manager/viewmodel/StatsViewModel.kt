@@ -8,15 +8,17 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wallet.manager.data.local.db.AppDatabase
 import com.wallet.manager.data.local.db.ExpenseWithFriends
 import com.wallet.manager.data.local.db.TypeTotalProjection
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_EXPENSE
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_INCOME
 import com.wallet.manager.data.repository.ExpenseRepository
 import com.wallet.manager.data.repository.ExpenseRepositoryImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
@@ -42,11 +44,14 @@ data class StatsUiState(
     val customEndDate: Long = System.currentTimeMillis(),
     val expenses: List<ExpenseWithFriends> = emptyList(),
     val totalByType: List<TypeTotalProjection> = emptyList(),
+    val incomeByType: List<TypeTotalProjection> = emptyList(),
     val totalSpentByMe: Double = 0.0,
+    val totalIncome: Double = 0.0,
     val totalOwedToMe: Double = 0.0,
     val totalIOweOthers: Double = 0.0,
     val friendDebts: List<FriendDebt> = emptyList(),
     val dailySpending: List<DailySpending> = emptyList(),
+    val dailyIncome: List<DailySpending> = emptyList(),
     val maxExpense: ExpenseWithFriends? = null,
     val avgPerDay: Double = 0.0
 )
@@ -64,17 +69,17 @@ class StatsViewModel(
             state.filter.toRange()
         }
         
-        combine(
-            repo.getExpensesWithFriendsInRange(from, to),
-            repo.getTotalByType(from, to)
-        ) { expenses, byType ->
+        repo.getExpensesWithFriendsInRange(from, to).map { expenses ->
             var mySpending = 0.0
             val debtMap = mutableMapOf<Long, Double>() // FriendId -> netAmount
             val friendNames = mutableMapOf<Long, String>()
             val dailyMap = mutableMapOf<String, Double>()
+            val incomeDailyMap = mutableMapOf<String, Double>()
             val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+            val expenseItems = expenses.filter { it.expense.transactionKind == TRANSACTION_KIND_EXPENSE }
+            val incomeItems = expenses.filter { it.expense.transactionKind == TRANSACTION_KIND_INCOME }
 
-            expenses.forEach { item ->
+            expenseItems.forEach { item ->
                 val e = item.expense
                 val friendCrossRefs = item.friendCrossRefs
                 val totalShares = e.myShareCount + friendCrossRefs.sumOf { it.shareCount }
@@ -121,6 +126,12 @@ class StatsViewModel(
                 }
             }
 
+            incomeItems.forEach { item ->
+                val e = item.expense
+                val dateLabel = dateFormat.format(Date(e.date))
+                incomeDailyMap[dateLabel] = (incomeDailyMap[dateLabel] ?: 0.0) + e.amount
+            }
+
             val netOwedToMe = debtMap.values.filter { it > 0 }.sum()
             val netIOweOthers = debtMap.values.filter { it < 0 }.sum().let { Math.abs(it) }
             
@@ -129,17 +140,29 @@ class StatsViewModel(
             }.sortedByDescending { Math.abs(it.netAmount) }
 
             val sortedDaily = dailyMap.map { DailySpending(it.key, it.value) }.reversed()
+            val sortedIncomeDaily = incomeDailyMap.map { DailySpending(it.key, it.value) }.reversed()
+            val expenseByType = expenseItems
+                .groupBy { it.expense.type }
+                .map { (type, items) -> TypeTotalProjection(type, items.sumOf { it.expense.amount }) }
+                .sortedByDescending { it.total }
+            val incomeByType = incomeItems
+                .groupBy { it.expense.type }
+                .map { (type, items) -> TypeTotalProjection(type, items.sumOf { it.expense.amount }) }
+                .sortedByDescending { it.total }
 
             val days = ((to - from) / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
             state.copy(
                 expenses = expenses,
-                totalByType = byType,
+                totalByType = expenseByType,
+                incomeByType = incomeByType,
                 totalSpentByMe = mySpending,
+                totalIncome = incomeItems.sumOf { it.expense.amount },
                 totalOwedToMe = netOwedToMe,
                 totalIOweOthers = netIOweOthers,
                 friendDebts = friendDebtList,
                 dailySpending = sortedDaily,
-                maxExpense = expenses.maxByOrNull { it.expense.amount },
+                dailyIncome = sortedIncomeDaily,
+                maxExpense = expenseItems.maxByOrNull { it.expense.amount },
                 avgPerDay = mySpending / days
             )
         }.flowOn(Dispatchers.Default)

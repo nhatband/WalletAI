@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -17,9 +18,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -48,6 +49,34 @@ import java.util.Locale
 
 private val vnLocale = Locale("vi", "VN")
 
+private fun parseDateInput(value: String): Long? {
+    val normalized = value.trim()
+    if (normalized.isBlank()) return null
+    return runCatching {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { isLenient = false }
+            .parse(normalized)
+            ?.time
+    }.getOrNull()
+}
+
+private fun startOfDay(dateMillis: Long): Long =
+    Calendar.getInstance().apply {
+        timeInMillis = dateMillis
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+private fun endOfDay(dateMillis: Long): Long =
+    Calendar.getInstance().apply {
+        timeInMillis = dateMillis
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 999)
+    }.timeInMillis
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatsScreen(
@@ -55,41 +84,107 @@ fun StatsScreen(
     vm: StatsViewModel = viewModel(factory = StatsViewModel.Factory)
 ) {
     val state by vm.uiState.collectAsState()
-    val context = LocalContext.current
-    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val dateFormatter = remember {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply { isLenient = false }
+    }
 
     var showRangePicker by remember { mutableStateOf(false) }
 
     if (showRangePicker) {
-        val dateRangePickerState = rememberDateRangePickerState()
+        val initialStart = if (state.filter == StatsFilter.CUSTOM) state.customStartDate else System.currentTimeMillis()
+        val initialEnd = if (state.filter == StatsFilter.CUSTOM) state.customEndDate else System.currentTimeMillis()
+        val dateRangePickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = initialStart,
+            initialSelectedEndDateMillis = initialEnd
+        )
+        var startText by remember { mutableStateOf(dateFormatter.format(Date(initialStart))) }
+        var endText by remember { mutableStateOf(dateFormatter.format(Date(initialEnd))) }
+        var inputError by remember { mutableStateOf(false) }
+
+        LaunchedEffect(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis) {
+            dateRangePickerState.selectedStartDateMillis?.let {
+                startText = dateFormatter.format(Date(it))
+                inputError = false
+            }
+            dateRangePickerState.selectedEndDateMillis?.let {
+                endText = dateFormatter.format(Date(it))
+                inputError = false
+            }
+        }
+
         DatePickerDialog(
             onDismissRequest = { showRangePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    val start = dateRangePickerState.selectedStartDateMillis
-                    val end = dateRangePickerState.selectedEndDateMillis
-                    if (start != null && end != null) {
-                        val endCal = Calendar.getInstance().apply {
-                            timeInMillis = end
-                            set(Calendar.HOUR_OF_DAY, 23)
-                            set(Calendar.MINUTE, 59)
-                            set(Calendar.SECOND, 59)
-                        }
-                        vm.setCustomRange(start, endCal.timeInMillis)
+                    val typedStart = parseDateInput(startText)
+                    val typedEnd = parseDateInput(endText.ifBlank { startText })
+                    val hasInvalidInput = typedStart == null || typedEnd == null
+                    if (hasInvalidInput) {
+                        inputError = true
+                    } else {
+                        val start = startOfDay(typedStart)
+                        val end = endOfDay(typedEnd)
+                        vm.setCustomRange(start.coerceAtMost(end), end.coerceAtLeast(start))
                         showRangePicker = false
                     }
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.ok)) }
             },
             dismissButton = {
                 TextButton(onClick = { showRangePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         ) {
-            DateRangePicker(
-                state = dateRangePickerState,
-                title = { Text(stringResource(R.string.filter_custom), modifier = Modifier.padding(16.dp)) },
-                showModeToggle = false,
-                modifier = Modifier.fillMaxWidth().height(450.dp)
-            )
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.filter_custom),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = startText,
+                        onValueChange = {
+                            startText = it
+                            inputError = false
+                        },
+                        label = { Text(stringResource(R.string.start_date_title)) },
+                        placeholder = { Text("dd/MM/yyyy") },
+                        isError = inputError,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = endText,
+                        onValueChange = {
+                            endText = it
+                            inputError = false
+                        },
+                        label = { Text(stringResource(R.string.end_date_title)) },
+                        placeholder = { Text("dd/MM/yyyy") },
+                        isError = inputError,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (inputError) {
+                    Text(
+                        text = stringResource(R.string.date_input_error),
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                DateRangePicker(
+                    state = dateRangePickerState,
+                    title = {},
+                    showModeToggle = false,
+                    modifier = Modifier.fillMaxWidth().height(360.dp)
+                )
+            }
         }
     }
 
@@ -152,6 +247,7 @@ fun StatsScreen(
 
             StatsCards(
                 totalSpent = state.totalSpentByMe,
+                totalIncome = state.totalIncome,
                 avgPerDay = state.avgPerDay,
                 maxExpense = state.maxExpense?.expense?.amount ?: 0.0
             )
@@ -170,6 +266,23 @@ fun StatsScreen(
             Spacer(Modifier.height(8.dp))
             BarChartSection(
                 dailySpending = state.dailySpending
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(stringResource(R.string.stat_income_ratio), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            PieChartSection(
+                data = state.incomeByType.map { it.type to it.total }
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(stringResource(R.string.stat_income_daily), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            BarChartSection(
+                dailySpending = state.dailyIncome,
+                barColor = Color(0xFF16A34A)
             )
             
             Spacer(Modifier.height(32.dp))
@@ -308,24 +421,43 @@ private fun FilterChip(
 @Composable
 private fun StatsCards(
     totalSpent: Double,
+    totalIncome: Double,
     avgPerDay: Double,
     maxExpense: Double
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatsCard(
-            label = stringResource(R.string.stat_total),
-            value = "${String.format(vnLocale, "%,.0f", totalSpent)} đ",
-            icon = Icons.Default.Payments,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f)
-        )
-        StatsCard(
-            label = stringResource(R.string.stat_avg),
-            value = "${String.format(vnLocale, "%,.0f", avgPerDay)} đ",
-            icon = Icons.AutoMirrored.Filled.TrendingUp,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.weight(1f)
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatsCard(
+                label = stringResource(R.string.stat_total),
+                value = "${String.format(vnLocale, "%,.0f", totalSpent)} đ",
+                icon = Icons.Default.Payments,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+            StatsCard(
+                label = stringResource(R.string.stat_total_income),
+                value = "${String.format(vnLocale, "%,.0f", totalIncome)} đ",
+                icon = Icons.Default.Savings,
+                color = Color(0xFF16A34A),
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatsCard(
+                label = stringResource(R.string.stat_avg),
+                value = "${String.format(vnLocale, "%,.0f", avgPerDay)} đ",
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.weight(1f)
+            )
+            StatsCard(
+                label = stringResource(R.string.stat_max),
+                value = "${String.format(vnLocale, "%,.0f", maxExpense)} đ",
+                icon = Icons.Default.BarChart,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
@@ -397,6 +529,11 @@ private fun PieChartSection(data: List<Pair<String, Double>>) {
                     "Giải trí" -> stringResource(R.string.cat_entertainment)
                     "Học tập" -> stringResource(R.string.cat_study)
                     "Khác" -> stringResource(R.string.cat_other)
+                    "Lương", "Salary" -> stringResource(R.string.income_salary)
+                    "Thưởng", "Bonus" -> stringResource(R.string.income_bonus)
+                    "Đầu tư", "Investment" -> stringResource(R.string.income_investment)
+                    "Quà tặng", "Gift" -> stringResource(R.string.income_gift)
+                    "Thu khác", "Other income" -> stringResource(R.string.income_other)
                     else -> label
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -413,9 +550,20 @@ private fun PieChartSection(data: List<Pair<String, Double>>) {
 }
 
 @Composable
-private fun BarChartSection(dailySpending: List<DailySpending>) {
+private fun BarChartSection(
+    dailySpending: List<DailySpending>,
+    barColor: Color = Color(0xFF2563EB)
+) {
     if (dailySpending.isEmpty()) {
         Text(stringResource(R.string.no_data), style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+    if (dailySpending.size == 1) {
+        SingleDayTotalBar(
+            label = dailySpending.first().dateLabel,
+            amount = dailySpending.first().amount,
+            color = barColor
+        )
         return
     }
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -427,14 +575,12 @@ private fun BarChartSection(dailySpending: List<DailySpending>) {
 
     val labelColor = MaterialTheme.colorScheme.onSurface
     val guidelineColor = MaterialTheme.colorScheme.outlineVariant
-    val primaryColor = Color(0xFF2563EB) // Màu xanh rực rỡ cho cột
-
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberColumnCartesianLayer(
                 columnProvider = ColumnCartesianLayer.ColumnProvider.series(
                     rememberLineComponent(
-                        fill = fill(primaryColor),
+                        fill = fill(barColor),
                         thickness = 16.dp,
                         shape = CorneredShape.rounded(4f) // Sử dụng pixel size Float theo API của Vico core
                     )
@@ -455,4 +601,45 @@ private fun BarChartSection(dailySpending: List<DailySpending>) {
         modelProducer = modelProducer,
         modifier = Modifier.fillMaxWidth().height(220.dp)
     )
+}
+
+@Composable
+private fun SingleDayTotalBar(
+    label: String,
+    amount: Double,
+    color: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "${String.format(vnLocale, "%,.0f", amount)} đ",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp)
+                .background(color.copy(alpha = 0.18f), MaterialTheme.shapes.small)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .background(color, MaterialTheme.shapes.small)
+            )
+        }
+    }
 }

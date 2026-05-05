@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class ExpenseDto(
     val id: Long? = null,
     val user_id: String? = null,
+    val transaction_kind: String = "expense",
     val type: String,
     val title: String,
     val content: String,

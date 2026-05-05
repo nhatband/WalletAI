@@ -13,6 +13,7 @@ import com.wallet.manager.data.remote.supabase.model.FriendDto
 fun Expense.toDto() = ExpenseDto(
     id = if (id == 0L) null else id,
     user_id = SupabaseConfig.currentUserId(),
+    transaction_kind = transactionKind,
     type = type,
     title = title,
     content = content,
@@ -50,6 +51,7 @@ fun CreditCard.toDto() = CreditCardDto(
 
 fun ExpenseDto.toEntity() = Expense(
     id = id ?: 0L,
+    transactionKind = transaction_kind,
     type = type,
     title = title,
     content = content,

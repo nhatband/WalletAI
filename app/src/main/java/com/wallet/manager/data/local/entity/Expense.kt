@@ -3,9 +3,13 @@ package com.wallet.manager.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+const val TRANSACTION_KIND_EXPENSE = "expense"
+const val TRANSACTION_KIND_INCOME = "income"
+
 @Entity(tableName = "expenses")
 data class Expense(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val transactionKind: String = TRANSACTION_KIND_EXPENSE,
     val type: String,
     val title: String,
     val content: String,

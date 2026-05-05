@@ -18,6 +18,8 @@ import com.wallet.manager.data.local.db.ExpenseWithFriends
 import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.Friend
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_EXPENSE
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_INCOME
 import com.wallet.manager.data.repository.CreditCardRepository
 import com.wallet.manager.data.repository.CreditCardRepositoryImpl
 import com.wallet.manager.data.repository.ExpenseRepository
@@ -38,6 +40,7 @@ data class HomeUiState(
     val filteredExpenses: List<ExpenseWithFriends> = emptyList(),
     val isBottomSheetOpen: Boolean = false,
     val isBillLoading: Boolean = false,
+    val manualTransactionKind: String = TRANSACTION_KIND_EXPENSE,
     val manualType: String = "Ăn uống",
     val manualTitle: String = "",
     val manualContent: String = "",
@@ -121,6 +124,43 @@ class HomeViewModel(
         }
     }
 
+    fun isIncomeCategoryMatch(type: String?, resId: Int): Boolean {
+        if (type == null) return false
+        return type == getApplication<Application>().getString(resId) || isIncomeLegacyMatch(type, resId)
+    }
+
+    private fun isIncomeLegacyMatch(type: String, resId: Int): Boolean {
+        return when (resId) {
+            R.string.income_salary -> type == "Lương" || type == "Salary"
+            R.string.income_bonus -> type == "Thưởng" || type == "Bonus"
+            R.string.income_investment -> type == "Đầu tư" || type == "Investment"
+            R.string.income_gift -> type == "Quà tặng" || type == "Gift"
+            R.string.income_other -> type == "Thu khác" || type == "Other income"
+            else -> false
+        }
+    }
+
+    fun setManualTransactionKind(kind: String) {
+        val defaultType = if (kind == TRANSACTION_KIND_INCOME) {
+            getApplication<Application>().getString(R.string.income_salary)
+        } else {
+            getApplication<Application>().getString(R.string.cat_food)
+        }
+        _uiState.update {
+            it.copy(
+                manualTransactionKind = kind,
+                manualType = defaultType,
+                selectedFriendShares = if (kind == TRANSACTION_KIND_INCOME) emptyMap() else it.selectedFriendShares,
+                myShareCount = if (kind == TRANSACTION_KIND_INCOME) 1 else it.myShareCount,
+                payerId = if (kind == TRANSACTION_KIND_INCOME) null else it.payerId,
+                isSettled = if (kind == TRANSACTION_KIND_INCOME) false else it.isSettled,
+                selectedCreditCardId = if (kind == TRANSACTION_KIND_INCOME) null else it.selectedCreditCardId,
+                billImageUri = if (kind == TRANSACTION_KIND_INCOME) null else it.billImageUri,
+                errorMessage = null
+            )
+        }
+    }
+
     fun onSearchQueryChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }
@@ -134,6 +174,7 @@ class HomeViewModel(
             it.copy(
                 isBottomSheetOpen = true,
                 editingExpenseId = null,
+                manualTransactionKind = TRANSACTION_KIND_EXPENSE,
                 manualType = getApplication<Application>().getString(R.string.cat_food),
                 manualTitle = "",
                 manualContent = "",
@@ -159,6 +200,7 @@ class HomeViewModel(
             it.copy(
                 isBottomSheetOpen = true,
                 editingExpenseId = expense.id,
+                manualTransactionKind = expense.transactionKind,
                 manualType = expense.type,
                 manualTitle = expense.title,
                 manualContent = expense.content,
@@ -241,23 +283,25 @@ class HomeViewModel(
         val amount = state.manualAmount.toDoubleOrNull() ?: return
         
         viewModelScope.launch {
-            val validShares = state.selectedFriendShares
-            val isSplit = validShares.isNotEmpty()
+            val isIncome = state.manualTransactionKind == TRANSACTION_KIND_INCOME
+            val validShares = if (isIncome) emptyMap() else state.selectedFriendShares
+            val isSplit = !isIncome && validShares.isNotEmpty()
             
             val expense = Expense(
                 id = state.editingExpenseId ?: 0L,
+                transactionKind = state.manualTransactionKind,
                 type = state.manualType,
                 title = state.manualTitle,
                 content = state.manualContent,
                 amount = amount,
                 date = state.manualDateMillis,
-                imageUri = imageUri,
+                imageUri = if (isIncome) null else imageUri,
                 createdAt = System.currentTimeMillis(),
                 isSplit = isSplit,
-                payerId = state.payerId,
-                isSettled = state.isSettled,
-                myShareCount = state.myShareCount,
-                creditCardId = state.selectedCreditCardId
+                payerId = if (isIncome) null else state.payerId,
+                isSettled = if (isIncome) false else state.isSettled,
+                myShareCount = if (isIncome) 1 else state.myShareCount,
+                creditCardId = if (isIncome) null else state.selectedCreditCardId
             )
             
             repo.addExpenseWithFriends(expense, validShares, state.isSettled)

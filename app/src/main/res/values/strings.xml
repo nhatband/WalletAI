@@ -32,6 +32,21 @@
     <string name="sending">Đang gửi...</string>
     <string name="search_hint">Tìm kiếm chi tiêu...</string>
 
+    <string name="tab_expense">Chi tiêu</string>
+    <string name="tab_income">Thu nhập</string>
+    <string name="income_name">Tên nguồn thu</string>
+    <string name="income_salary">Lương</string>
+    <string name="income_bonus">Thưởng</string>
+    <string name="income_investment">Đầu tư</string>
+    <string name="income_gift">Quà tặng</string>
+    <string name="income_other">Thu khác</string>
+    <string name="transaction_kind">Loại giao dịch</string>
+    <string name="transaction_expense">Chi tiêu</string>
+    <string name="transaction_income">Thu nhập</string>
+    <string name="stat_total_income">Tổng thu</string>
+    <string name="stat_income_ratio">Tỷ lệ thu theo loại</string>
+    <string name="stat_income_daily">Thu nhập theo ngày</string>
+
     <string name="cat_all">Tất cả</string>
     <string name="cat_food">Ăn uống</string>
     <string name="cat_transport">Di chuyển</string>
@@ -123,6 +138,7 @@
     <string name="bill_image">Ảnh hóa đơn (Bill)</string>
     <string name="start_date_title">Ngày bắt đầu</string>
     <string name="end_date_title">Ngày kết thúc</string>
+    <string name="date_input_error">Nhập ngày theo định dạng dd/MM/yyyy.</string>
     <string name="from_to_date">Từ %1$s đến %2$s</string>
     <string name="note_label">Ghi chú: %s</string>
     <string name="suat_format">%1$d suất (%2$s đ)</string>

@@ -45,6 +45,8 @@ import com.wallet.manager.data.local.db.ExpenseWithFriends
 import com.wallet.manager.data.local.entity.CreditCard
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.Friend
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_EXPENSE
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_INCOME
 import com.wallet.manager.viewmodel.HomeUiState
 import com.wallet.manager.viewmodel.HomeViewModel
 import java.io.File
@@ -138,7 +140,11 @@ fun HomeScreen(
             }
         }
     ) { padding ->
-        val totalFiltered = remember(state.filteredExpenses) { state.filteredExpenses.sumOf { it.expense.amount } }
+        val totalFiltered = remember(state.filteredExpenses) {
+            state.filteredExpenses.sumOf {
+                if (it.expense.transactionKind == TRANSACTION_KIND_INCOME) it.expense.amount else -it.expense.amount
+            }
+        }
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -423,14 +429,27 @@ private fun ExpenseBottomSheet(
                 .navigationBarsPadding()
                 .imePadding()
         ) {
-            var tabIndex by remember { mutableStateOf(0) }
-            val tabs = listOf(stringResource(R.string.manual_input), stringResource(R.string.ai_parser))
+            var tabIndex by remember(state.editingExpenseId) {
+                mutableStateOf(if (state.manualTransactionKind == TRANSACTION_KIND_INCOME) 1 else 0)
+            }
+            val tabs = listOf(
+                stringResource(R.string.tab_expense),
+                stringResource(R.string.tab_income),
+                stringResource(R.string.ai_parser)
+            )
 
             TabRow(selectedTabIndex = tabIndex) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = tabIndex == index,
-                        onClick = { tabIndex = index },
+                        onClick = {
+                            tabIndex = index
+                            when (index) {
+                                0 -> vm.setManualTransactionKind(TRANSACTION_KIND_EXPENSE)
+                                1 -> vm.setManualTransactionKind(TRANSACTION_KIND_INCOME)
+                                2 -> vm.setManualTransactionKind(TRANSACTION_KIND_EXPENSE)
+                            }
+                        },
                         text = { Text(title) }
                     )
                 }
@@ -442,7 +461,7 @@ private fun ExpenseBottomSheet(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (tabIndex == 0) {
+                if (tabIndex == 0 || tabIndex == 1) {
                     item {
                         ExpenseForm(
                             state = state,
@@ -454,15 +473,17 @@ private fun ExpenseBottomSheet(
                         )
                     }
                     
-                    item {
-                        FriendSelectionSection(
-                            allFriends = state.allFriends,
-                            selectedFriendIds = state.selectedFriendShares.keys,
-                            onFriendToggle = vm::toggleFriendSelection
-                        )
+                    if (state.manualTransactionKind == TRANSACTION_KIND_EXPENSE) {
+                        item {
+                            FriendSelectionSection(
+                                allFriends = state.allFriends,
+                                selectedFriendIds = state.selectedFriendShares.keys,
+                                onFriendToggle = vm::toggleFriendSelection
+                            )
+                        }
                     }
 
-                    if (state.selectedFriendShares.isNotEmpty()) {
+                    if (state.manualTransactionKind == TRANSACTION_KIND_EXPENSE && state.selectedFriendShares.isNotEmpty()) {
                         item {
                             Text(stringResource(R.string.shares_counter), style = MaterialTheme.typography.titleSmall)
                             Spacer(Modifier.height(8.dp))
@@ -596,14 +617,25 @@ private fun ExpenseForm(
     onPhotoClick: () -> Unit,
     onClearPhoto: () -> Unit
 ) {
-    val categoryOptions = listOf(
-        R.string.cat_food,
-        R.string.cat_transport,
-        R.string.cat_shopping,
-        R.string.cat_entertainment,
-        R.string.cat_study,
-        R.string.cat_other
-    )
+    val isIncome = state.manualTransactionKind == TRANSACTION_KIND_INCOME
+    val categoryOptions = if (isIncome) {
+        listOf(
+            R.string.income_salary,
+            R.string.income_bonus,
+            R.string.income_investment,
+            R.string.income_gift,
+            R.string.income_other
+        )
+    } else {
+        listOf(
+            R.string.cat_food,
+            R.string.cat_transport,
+            R.string.cat_shopping,
+            R.string.cat_entertainment,
+            R.string.cat_study,
+            R.string.cat_other
+        )
+    }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -634,7 +666,11 @@ private fun ExpenseForm(
             categoryOptions.forEach { resId ->
                 val label = stringResource(resId)
                 FilterChip(
-                    selected = vm.isCategoryMatch(state.manualType, resId),
+                    selected = if (isIncome) {
+                        vm.isIncomeCategoryMatch(state.manualType, resId)
+                    } else {
+                        vm.isCategoryMatch(state.manualType, resId)
+                    },
                     onClick = { onFieldChange(label, null, null, null, null) },
                     label = { Text(label) }
                 )
@@ -644,7 +680,7 @@ private fun ExpenseForm(
         OutlinedTextField(
             value = state.manualTitle,
             onValueChange = { onFieldChange(null, it, null, null, null) },
-            label = { Text(stringResource(R.string.amount_name).replace("chi tiêu", "chi tiêu")) }, // Reusing or just hardcode if needed
+            label = { Text(if (isIncome) stringResource(R.string.income_name) else stringResource(R.string.amount_name)) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -670,33 +706,35 @@ private fun ExpenseForm(
             Text(dateFormat.format(Date(state.manualDateMillis)))
         }
 
-        CreditCardPaymentSection(
-            cards = state.allCreditCards,
-            selectedCreditCardId = state.selectedCreditCardId,
-            onCreditCardSelected = onCreditCardSelected
-        )
+        if (!isIncome) {
+            CreditCardPaymentSection(
+                cards = state.allCreditCards,
+                selectedCreditCardId = state.selectedCreditCardId,
+                onCreditCardSelected = onCreditCardSelected
+            )
 
-        Text(stringResource(R.string.bill_image), style = MaterialTheme.typography.titleSmall)
-        if (state.billImageUri != null) {
-            Box(Modifier.size(120.dp)) {
-                AsyncImage(
-                    model = state.billImageUri,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
-                    contentScale = ContentScale.Crop
-                )
-                IconButton(
-                    onClick = onClearPhoto,
-                    modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Text(stringResource(R.string.bill_image), style = MaterialTheme.typography.titleSmall)
+            if (state.billImageUri != null) {
+                Box(Modifier.size(120.dp)) {
+                    AsyncImage(
+                        model = state.billImageUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
+                        contentScale = ContentScale.Crop
+                    )
+                    IconButton(
+                        onClick = onClearPhoto,
+                        modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
                 }
-            }
-        } else {
-            OutlinedButton(onClick = onPhotoClick) {
-                Icon(Icons.Default.Image, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.pick_image))
+            } else {
+                OutlinedButton(onClick = onPhotoClick) {
+                    Icon(Icons.Default.Image, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.pick_image))
+                }
             }
         }
     }
@@ -792,6 +830,10 @@ private fun ExpenseDetailDialog(item: ExpenseWithFriends, onDismiss: () -> Unit)
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DetailRow(stringResource(R.string.amount), "${String.format(vnLocale, "%,.0f", expense.amount)} đ")
+                DetailRow(
+                    stringResource(R.string.transaction_kind),
+                    stringResource(if (expense.transactionKind == TRANSACTION_KIND_INCOME) R.string.transaction_income else R.string.transaction_expense)
+                )
                 DetailRow(stringResource(R.string.expense_type), expense.type)
                 DetailRow(stringResource(R.string.date), dateFormat.format(Date(expense.date)))
                 if (expense.content.isNotEmpty()) DetailRow(stringResource(R.string.note_title), expense.content)
@@ -1000,8 +1042,9 @@ private fun ExpenseListItemCard(
 ) {
     val expense = item.expense
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val isIncome = expense.transactionKind == TRANSACTION_KIND_INCOME
     val allSettled = item.friendCrossRefs.isNotEmpty() && item.friendCrossRefs.all { it.isSettled }
-    val icon = when (expense.type) {
+    val icon = if (isIncome) Icons.Default.Payments else when (expense.type) {
         stringResource(R.string.cat_food), "Food & Drinks" -> Icons.Default.Restaurant
         stringResource(R.string.cat_transport), "Transport" -> Icons.Default.DirectionsCar
         stringResource(R.string.cat_shopping), "Shopping" -> Icons.Default.ShoppingBag
@@ -1027,7 +1070,9 @@ private fun ExpenseListItemCard(
                 modifier = Modifier
                     .size(52.dp)
                     .background(
-                        color = if (allSettled) {
+                        color = if (isIncome) {
+                            Color(0xFF16A34A).copy(alpha = 0.14f)
+                        } else if (allSettled) {
                             Color(0xFF4CAF50).copy(alpha = 0.14f)
                         } else {
                             MaterialTheme.colorScheme.secondaryContainer
@@ -1039,7 +1084,7 @@ private fun ExpenseListItemCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (allSettled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSecondaryContainer
+                    tint = if (isIncome) Color(0xFF16A34A) else if (allSettled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
 
@@ -1082,10 +1127,10 @@ private fun ExpenseListItemCard(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text = "${String.format(vnLocale, "%,.0f", expense.amount)} VND",
+                    text = "${if (isIncome) "+" else ""}${String.format(vnLocale, "%,.0f", expense.amount)} VND",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (isIncome) Color(0xFF16A34A) else MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

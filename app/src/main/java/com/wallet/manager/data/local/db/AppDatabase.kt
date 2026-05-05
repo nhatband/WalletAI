@@ -2,8 +2,10 @@ package com.wallet.manager.data.local.db
 
 import android.content.Context
 import androidx.room.Database
+import androidx.room.migration.Migration
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.wallet.manager.data.local.entity.Expense
 import com.wallet.manager.data.local.entity.ChatMessageEntity
 import com.wallet.manager.data.local.entity.CreditCard
@@ -18,7 +20,7 @@ import com.wallet.manager.data.local.entity.ExpenseFriendCrossRef
         ExpenseFriendCrossRef::class,
         CreditCard::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,8 +41,17 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "wallet_db"
                 )
+                .addMigrations(MIGRATION_9_10)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
             }
+
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE expenses ADD COLUMN transactionKind TEXT NOT NULL DEFAULT 'expense'"
+                )
+            }
+        }
     }
 }
