@@ -487,6 +487,10 @@ private fun PieChartSection(data: List<Pair<String, Double>>) {
     }
 
     val total = data.sumOf { it.second }
+    if (total <= 0.0) {
+        Text(stringResource(R.string.no_data), style = MaterialTheme.typography.bodyMedium)
+        return
+    }
     // Bảng màu rực rỡ hơn để không bị chìm
     val colors = listOf(
         Color(0xFF4F46E5), // Indigo rực rỡ
@@ -594,7 +598,7 @@ private fun BarChartSection(
             bottomAxis = HorizontalAxis.rememberBottom(
                 label = rememberTextComponent(color = labelColor),
                 valueFormatter = { _, value, _ ->
-                    dailySpending.getOrNull(value.toInt())?.dateLabel ?: ""
+                    dailySpending.getOrNull(value.toInt())?.dateLabel ?: value.toInt().toString()
                 }
             )
         ),

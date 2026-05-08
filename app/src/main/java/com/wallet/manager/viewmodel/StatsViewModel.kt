@@ -21,19 +21,18 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 enum class StatsFilter { DAY, WEEK, MONTH, YEAR, CUSTOM }
 
 data class FriendDebt(
     val friendName: String,
-    val netAmount: Double // Positive means they owe me, negative means I owe them
+    val netAmount: Double
 )
 
 data class DailySpending(
+    val dateMillis: Long,
     val dateLabel: String,
     val amount: Double
 )
@@ -61,21 +60,20 @@ class StatsViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatsUiState())
-    
+
     val uiState: StateFlow<StatsUiState> = _uiState.flatMapLatest { state ->
         val (from, to) = if (state.filter == StatsFilter.CUSTOM) {
             state.customStartDate to state.customEndDate
         } else {
             state.filter.toRange()
         }
-        
+
         repo.getExpensesWithFriendsInRange(from, to).map { expenses ->
             var mySpending = 0.0
-            val debtMap = mutableMapOf<Long, Double>() // FriendId -> netAmount
+            val debtMap = mutableMapOf<Long, Double>()
             val friendNames = mutableMapOf<Long, String>()
-            val dailyMap = mutableMapOf<String, Double>()
-            val incomeDailyMap = mutableMapOf<String, Double>()
-            val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+            val expenseByDay = mutableMapOf<Long, Double>()
+            val incomeByDay = mutableMapOf<Long, Double>()
             val expenseItems = expenses.filter { it.expense.transactionKind == TRANSACTION_KIND_EXPENSE }
             val incomeItems = expenses.filter { it.expense.transactionKind == TRANSACTION_KIND_INCOME }
 
@@ -83,8 +81,8 @@ class StatsViewModel(
                 val e = item.expense
                 val friendCrossRefs = item.friendCrossRefs
                 val totalShares = e.myShareCount + friendCrossRefs.sumOf { it.shareCount }
-                val dateLabel = dateFormat.format(Date(e.date))
-                
+                val dayKey = startOfDay(e.date)
+
                 var currentItemMyShare = 0.0
 
                 if (e.isSplit && totalShares > 0) {
@@ -92,8 +90,7 @@ class StatsViewModel(
                     currentItemMyShare = shareAmount * e.myShareCount
                     mySpending += currentItemMyShare
 
-                    // logic nợ: tính dựa trên trạng thái isSettled của từng người bạn
-                    if (e.payerId == null) { // Tôi trả
+                    if (e.payerId == null) {
                         item.friends.forEach { friend ->
                             val crossRef = friendCrossRefs.find { it.friendId == friend.id }
                             if (crossRef != null && !crossRef.isSettled) {
@@ -102,45 +99,47 @@ class StatsViewModel(
                                 friendNames[friend.id] = friend.name
                             }
                         }
-                    } else { // Bạn trả
+                    } else {
                         val crossRefForMe = friendCrossRefs.find { it.friendId == e.payerId }
-                        // Ở đây logic nợ là "Tôi nợ người trả tiền". 
-                        // Trạng thái settled này thường được đánh dấu từ phía tôi trả cho họ.
                         val isPaidToFriend = crossRefForMe?.isSettled ?: false
-                        
+
                         if (!isPaidToFriend) {
                             debtMap[e.payerId] = (debtMap[e.payerId] ?: 0.0) - currentItemMyShare
                             val payer = item.friends.find { it.id == e.payerId }
                             if (payer != null) friendNames[payer.id] = payer.name
                         }
                     }
-                } else if (!e.isSplit) {
-                    if (e.payerId == null) {
-                        currentItemMyShare = e.amount
-                        mySpending += currentItemMyShare
-                    }
+                } else if (!e.isSplit && e.payerId == null) {
+                    currentItemMyShare = e.amount
+                    mySpending += currentItemMyShare
                 }
-                
+
                 if (currentItemMyShare > 0) {
-                    dailyMap[dateLabel] = (dailyMap[dateLabel] ?: 0.0) + currentItemMyShare
+                    expenseByDay[dayKey] = (expenseByDay[dayKey] ?: 0.0) + currentItemMyShare
                 }
             }
 
             incomeItems.forEach { item ->
                 val e = item.expense
-                val dateLabel = dateFormat.format(Date(e.date))
-                incomeDailyMap[dateLabel] = (incomeDailyMap[dateLabel] ?: 0.0) + e.amount
+                val dayKey = startOfDay(e.date)
+                incomeByDay[dayKey] = (incomeByDay[dayKey] ?: 0.0) + e.amount
             }
 
             val netOwedToMe = debtMap.values.filter { it > 0 }.sum()
-            val netIOweOthers = debtMap.values.filter { it < 0 }.sum().let { Math.abs(it) }
-            
+            val netIOweOthers = debtMap.values.filter { it < 0 }.sum().let { kotlin.math.abs(it) }
+
             val friendDebtList = debtMap.map { (id, amount) ->
                 FriendDebt(friendNames[id] ?: "Unknown", amount)
-            }.sortedByDescending { Math.abs(it.netAmount) }
+            }.sortedByDescending { kotlin.math.abs(it.netAmount) }
 
-            val sortedDaily = dailyMap.map { DailySpending(it.key, it.value) }.reversed()
-            val sortedIncomeDaily = incomeDailyMap.map { DailySpending(it.key, it.value) }.reversed()
+            val dateFormat = java.text.SimpleDateFormat("dd/MM", Locale.getDefault())
+            val sortedDaily = expenseByDay.toSortedMap().map { (day, amount) ->
+                DailySpending(dateMillis = day, dateLabel = dateFormat.format(day), amount = amount)
+            }
+            val sortedIncomeDaily = incomeByDay.toSortedMap().map { (day, amount) ->
+                DailySpending(dateMillis = day, dateLabel = dateFormat.format(day), amount = amount)
+            }
+
             val expenseByType = expenseItems
                 .groupBy { it.expense.type }
                 .map { (type, items) -> TypeTotalProjection(type, items.sumOf { it.expense.amount }) }
@@ -150,7 +149,7 @@ class StatsViewModel(
                 .map { (type, items) -> TypeTotalProjection(type, items.sumOf { it.expense.amount }) }
                 .sortedByDescending { it.total }
 
-            val days = ((to - from) / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
+            val days = (((to - from) / DAY_IN_MILLIS) + 1).coerceAtLeast(1)
             state.copy(
                 expenses = expenses,
                 totalByType = expenseByType,
@@ -177,48 +176,67 @@ class StatsViewModel(
     }
 
     fun setCustomRange(start: Long, end: Long) {
-        _uiState.update { 
+        _uiState.update {
             it.copy(
                 filter = StatsFilter.CUSTOM,
                 customStartDate = start,
                 customEndDate = end
-            ) 
+            )
         }
     }
 
     private fun StatsFilter.toRange(): Pair<Long, Long> {
+        val now = System.currentTimeMillis()
         val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        cal.set(Calendar.MILLISECOND, 999)
-        val end = cal.timeInMillis
-        
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        
-        val start = when (this) {
-            StatsFilter.DAY -> cal.timeInMillis
+        cal.timeInMillis = now
+        return when (this) {
+            StatsFilter.DAY -> startOfDay(now) to endOfDay(now)
             StatsFilter.WEEK -> {
-                cal.add(Calendar.DAY_OF_YEAR, -7)
-                cal.timeInMillis
+                val end = endOfDay(now)
+                cal.timeInMillis = startOfDay(now)
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                val start = startOfDay(cal.timeInMillis)
+                start to end
             }
             StatsFilter.MONTH -> {
-                cal.add(Calendar.DAY_OF_YEAR, -30)
-                cal.timeInMillis
+                val end = endOfDay(now)
+                cal.timeInMillis = startOfDay(now)
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                val start = startOfDay(cal.timeInMillis)
+                start to end
             }
             StatsFilter.YEAR -> {
-                cal.add(Calendar.YEAR, -1)
-                cal.timeInMillis
+                val end = endOfDay(now)
+                cal.timeInMillis = startOfDay(now)
+                cal.set(Calendar.DAY_OF_YEAR, 1)
+                val start = startOfDay(cal.timeInMillis)
+                start to end
             }
-            StatsFilter.CUSTOM -> 0L // Handled outside
+            StatsFilter.CUSTOM -> 0L to 0L
         }
-        return start to end
     }
 
+    private fun startOfDay(timeMillis: Long): Long =
+        Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    private fun endOfDay(timeMillis: Long): Long =
+        Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+
     companion object {
+        private const val DAY_IN_MILLIS = 24L * 60L * 60L * 1000L
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val appContext =
