@@ -10,8 +10,10 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.math.max
 
 data class ParsedBill(
@@ -26,7 +28,8 @@ class GeminiBillParser(
     private val apiKey: String
 ) {
     suspend fun parseBill(bitmap: Bitmap): ParsedBill? = withContext(Dispatchers.IO) {
-        val today = SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN")).format(Date())
+        val todayMillis = System.currentTimeMillis()
+        val today = billDateFormatter().format(Date(todayMillis))
         val prompt = """
             Bạn là bộ đọc hóa đơn/biên lai cho app quản lý chi tiêu cá nhân.
             Hôm nay là $today.
@@ -37,14 +40,18 @@ class GeminiBillParser(
               "title": "Tiêu đề ngắn",
               "content": "Mô tả ngắn gồm cửa hàng và vài mặt hàng chính nếu thấy",
               "amount": 120000.0,
-              "dateMillis": 1690848000000
+              "dateText": "14/05/2026"
             }
 
             Quy tắc:
             - type chỉ chọn một trong: Ăn uống, Di chuyển, Mua sắm, Giải trí, Học tập, Khác.
             - amount là tổng tiền cuối cùng khách phải trả, đơn vị VND, không lấy tiền tạm tính nếu có tổng thanh toán.
             - Nếu có nhiều số tiền, ưu tiên các nhãn: tổng cộng, thành tiền, thanh toán, total, grand total, amount paid.
-            - dateMillis là thời điểm trên hóa đơn theo múi giờ Việt Nam. Nếu không thấy ngày, dùng ngày hôm nay.
+            - dateText là ngày in trên hóa đơn, định dạng dd/MM/yyyy.
+            - Không tự tính timestamp/epoch.
+            - Nếu hóa đơn có giờ thì bỏ giờ, chỉ lấy ngày.
+            - Nếu ngày trên hóa đơn thiếu năm, dùng năm hiện tại.
+            - Nếu không thấy ngày, dùng ngày hôm nay: $today.
             - title ngắn gọn, ví dụ tên cửa hàng hoặc "Hóa đơn ăn uống".
             - Nếu ảnh không phải hóa đơn/biên lai hoặc không đọc được tổng tiền, trả JSON với amount = 0.
             - Chỉ trả về JSON, không thêm giải thích, không dùng markdown.
@@ -83,9 +90,9 @@ class GeminiBillParser(
                                     .put("title", JSONObject().put("type", "STRING"))
                                     .put("content", JSONObject().put("type", "STRING"))
                                     .put("amount", JSONObject().put("type", "NUMBER"))
-                                    .put("dateMillis", JSONObject().put("type", "INTEGER"))
+                                    .put("dateText", JSONObject().put("type", "STRING"))
                             )
-                            .put("required", JSONArray().put("type").put("title").put("content").put("amount").put("dateMillis"))
+                            .put("required", JSONArray().put("type").put("title").put("content").put("amount").put("dateText"))
                     )
             )
             .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
@@ -103,8 +110,61 @@ class GeminiBillParser(
             title = json.optString("title").ifBlank { "Hóa đơn" },
             content = json.optString("content"),
             amount = amount,
-            dateMillis = json.optLong("dateMillis").takeIf { it > 0L } ?: System.currentTimeMillis()
+            dateMillis = parseBillDateMillis(json.optString("dateText"), todayMillis)
         )
+    }
+
+    private fun parseBillDateMillis(rawDate: String, fallbackMillis: Long): Long {
+        val normalizedInput = rawDate
+            .trim()
+            .replace(Regex("\\s+"), " ")
+            .replace('.', '/')
+            .replace('-', '/')
+        val normalized = Regex("\\d{1,4}/\\d{1,2}/\\d{1,4}|\\d{1,2}/\\d{1,2}")
+            .find(normalizedInput)
+            ?.value
+            ?: normalizedInput.substringBefore(" ").substringBefore("T")
+
+        if (normalized.isBlank()) return startOfDayMillis(fallbackMillis)
+
+        val currentYear = Calendar.getInstance(VIETNAM_TIME_ZONE).get(Calendar.YEAR)
+        val candidates = mutableListOf(normalized).apply {
+            if (Regex("^\\d{1,2}/\\d{1,2}$").matches(normalized)) {
+                add("$normalized/$currentYear")
+            }
+        }
+
+        val patterns = listOf("dd/MM/yyyy", "d/M/yyyy", "dd/MM/yy", "d/M/yy", "yyyy/MM/dd", "yyyy/M/d")
+        for (candidate in candidates) {
+            for (pattern in patterns) {
+                runCatching {
+                    SimpleDateFormat(pattern, Locale("vi", "VN")).apply {
+                        isLenient = false
+                        timeZone = VIETNAM_TIME_ZONE
+                    }.parse(candidate)
+                }.getOrNull()?.let { parsed ->
+                    return startOfDayMillis(parsed.time)
+                }
+            }
+        }
+
+        return startOfDayMillis(fallbackMillis)
+    }
+
+    private fun startOfDayMillis(timeMillis: Long): Long {
+        return Calendar.getInstance(VIETNAM_TIME_ZONE).apply {
+            timeInMillis = timeMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
+    private fun billDateFormatter(): SimpleDateFormat {
+        return SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN")).apply {
+            timeZone = VIETNAM_TIME_ZONE
+        }
     }
 
     private fun Bitmap.scaledForGemini(maxSide: Int = 1600): Bitmap {
@@ -127,6 +187,10 @@ class GeminiBillParser(
             value.contains("học") || value.contains("hoc") || value.contains("study") -> "Học tập"
             else -> "Khác"
         }
+    }
+
+    companion object {
+        private val VIETNAM_TIME_ZONE: TimeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
     }
 }
 
