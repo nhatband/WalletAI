@@ -71,7 +71,7 @@ class HomeViewModel(
     private val repo: ExpenseRepository,
     private val friendRepo: FriendRepository,
     private val creditCardRepo: CreditCardRepository,
-    private val billParser: GeminiBillParser?
+    private val securePrefs: SecurePrefsManager
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -382,17 +382,19 @@ class HomeViewModel(
     }
 
     fun parseBillFromBitmap(bitmap: Bitmap, imageUri: String?) {
-        val parser = billParser
-        if (parser == null) {
+        val apiKey = securePrefs.getGeminiApiKey().orEmpty()
+        if (apiKey.isBlank()) {
             _uiState.update {
                 it.copy(
                     isBillLoading = false,
                     billImageUri = imageUri,
-                    errorMessage = "Chua cau hinh Gemini API key trong Settings."
+                    errorMessage = "Chưa cấu hình Gemini API key trong Cài đặt."
                 )
             }
             return
         }
+
+        val parser = GeminiBillParser(apiKey)
         viewModelScope.launch {
             _uiState.update { it.copy(isBillLoading = true, billImageUri = imageUri) }
             try {
@@ -458,13 +460,7 @@ class HomeViewModel(
                 val friendRepo = FriendRepositoryImpl(db.friendDao(), db.expenseDao(), application)
                 val creditCardRepo = CreditCardRepositoryImpl(db.creditCardDao(), application, db.expenseDao())
                 val securePrefs = SecurePrefsManager.getInstance(application)
-                val apiKey = securePrefs.getGeminiApiKey()
-                val billParser = try {
-                    apiKey?.let { GeminiBillParser(it) }
-                } catch (_: Throwable) {
-                    null
-                }
-                HomeViewModel(application, repo, friendRepo, creditCardRepo, billParser)
+                HomeViewModel(application, repo, friendRepo, creditCardRepo, securePrefs)
             }
         }
     }

@@ -9,6 +9,8 @@ import com.wallet.manager.ai.GeminiChatAssistant
 import com.wallet.manager.data.local.db.AppDatabase
 import com.wallet.manager.data.local.db.ChatDao
 import com.wallet.manager.data.local.entity.ChatMessageEntity
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_EXPENSE
+import com.wallet.manager.data.local.entity.TRANSACTION_KIND_INCOME
 import com.wallet.manager.data.repository.ExpenseRepository
 import com.wallet.manager.data.repository.ExpenseRepositoryImpl
 import com.wallet.manager.data.repository.FriendRepository
@@ -106,12 +108,25 @@ class ChatViewModel(
                 val friendsMap = allFriends.associateBy { it.id }
                 val cardsMap = allCards.associateBy { it.id }
                 val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val nowMillis = System.currentTimeMillis()
 
+                val transactionsJson = JSONArray()
                 val expensesJson = JSONArray()
+                val incomesJson = JSONArray()
+                val splitTransactionsJson = JSONArray()
+                val debtItemsJson = JSONArray()
+                var totalExpense = 0.0
+                var totalIncome = 0.0
+                var totalFriendsOweMe = 0.0
+                var totalIOweFriends = 0.0
+                val expenseByCategory = mutableMapOf<String, Double>()
+                val incomeByCategory = mutableMapOf<String, Double>()
+
                 expensesWithFriends.forEach { item ->
                     val expense = item.expense
                     val obj = JSONObject()
                     obj.put("id", expense.id)
+                    obj.put("transactionKind", expense.transactionKind)
                     obj.put("type", expense.type)
                     obj.put("title", expense.title)
                     obj.put("content", expense.content)
@@ -142,7 +157,56 @@ class ChatViewModel(
                         }
                     }
                     obj.put("participants", participants)
-                    expensesJson.put(obj)
+                    transactionsJson.put(obj)
+
+                    if (expense.transactionKind == TRANSACTION_KIND_INCOME) {
+                        totalIncome += expense.amount
+                        incomeByCategory[expense.type] = (incomeByCategory[expense.type] ?: 0.0) + expense.amount
+                        incomesJson.put(obj)
+                    } else {
+                        totalExpense += expense.amount
+                        expenseByCategory[expense.type] = (expenseByCategory[expense.type] ?: 0.0) + expense.amount
+                        expensesJson.put(obj)
+                    }
+
+                    if (expense.isSplit && expense.transactionKind == TRANSACTION_KIND_EXPENSE) {
+                        splitTransactionsJson.put(obj)
+                        val totalShares = expense.myShareCount + item.friendCrossRefs.sumOf { it.shareCount }
+                        if (totalShares > 0) {
+                            val amountPerShare = expense.amount / totalShares
+                            if (expense.payerId == null) {
+                                item.friendCrossRefs
+                                    .filter { ref -> ref.shareCount > 0 && !ref.isSettled }
+                                    .forEach { ref ->
+                                        val friendName = friendsMap[ref.friendId]?.name ?: "Người lạ"
+                                        val owedAmount = amountPerShare * ref.shareCount
+                                        totalFriendsOweMe += owedAmount
+                                        debtItemsJson.put(
+                                            JSONObject()
+                                                .put("direction", "friend_owes_me")
+                                                .put("person", friendName)
+                                                .put("expenseTitle", expense.title)
+                                                .put("amount", owedAmount)
+                                                .put("dateLabel", dateFormatter.format(Date(expense.date)))
+                                                .put("isSettled", false)
+                                        )
+                                    }
+                            } else if (!expense.isSettled && expense.myShareCount > 0) {
+                                val payerName = friendsMap[expense.payerId]?.name ?: "Người lạ"
+                                val owedAmount = amountPerShare * expense.myShareCount
+                                totalIOweFriends += owedAmount
+                                debtItemsJson.put(
+                                    JSONObject()
+                                        .put("direction", "i_owe_friend")
+                                        .put("person", payerName)
+                                        .put("expenseTitle", expense.title)
+                                        .put("amount", owedAmount)
+                                        .put("dateLabel", dateFormatter.format(Date(expense.date)))
+                                        .put("isSettled", false)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 val creditCardsJson = JSONArray()
@@ -190,24 +254,60 @@ class ChatViewModel(
                 }
 
                 val summary = JSONObject()
+                summary.put(
+                    "summary",
+                    JSONObject()
+                        .put("generatedAt", dateFormatter.format(Date(nowMillis)))
+                        .put("totalExpense", totalExpense)
+                        .put("totalIncome", totalIncome)
+                        .put("netCashFlow", totalIncome - totalExpense)
+                        .put("transactionCount", transactionsJson.length())
+                        .put("expenseCount", expensesJson.length())
+                        .put("incomeCount", incomesJson.length())
+                        .put("expenseByCategory", expenseByCategory.toJsonArray())
+                        .put("incomeByCategory", incomeByCategory.toJsonArray())
+                )
+                summary.put(
+                    "debt_split_summary",
+                    JSONObject()
+                        .put("friendsOweMeTotal", totalFriendsOweMe)
+                        .put("iOweFriendsTotal", totalIOweFriends)
+                        .put("netDebtPosition", totalFriendsOweMe - totalIOweFriends)
+                        .put("openDebtItems", debtItemsJson)
+                )
+                summary.put("transactions", transactionsJson)
                 summary.put("expenses", expensesJson)
+                summary.put("incomes", incomesJson)
+                summary.put("split_transactions", splitTransactionsJson)
                 summary.put("credit_cards", creditCardsJson)
                 summary.put("credit_card_transactions", creditCardTransactionsJson)
                 summary.put(
                     "instruction",
                     """
-                    Dữ liệu đã được chia thành 3 nhóm:
-                    1. expenses: toàn bộ chi tiêu
-                    2. credit_cards: thông tin từng thẻ tín dụng và tổng tiền theo kỳ
-                    3. credit_card_transactions: các giao dịch có gắn thẻ tín dụng
+                    Dữ liệu đã được chia thành các nhóm:
+                    1. summary: tổng thu, tổng chi, chênh lệch và tổng theo danh mục
+                    2. transactions: toàn bộ giao dịch
+                    3. expenses: chỉ giao dịch chi tiêu
+                    4. incomes: chỉ giao dịch thu nhập
+                    5. debt_split_summary: các khoản nợ/chia tiền còn mở đã tính sẵn
+                    6. split_transactions: giao dịch có chia tiền
+                    7. credit_cards: thông tin từng thẻ tín dụng và tổng tiền theo kỳ
+                    8. credit_card_transactions: các giao dịch có gắn thẻ tín dụng
 
                     Khi câu hỏi nói về "tín dụng", "thẻ tín dụng", "sao kê", "giao dịch thẻ", "chi tiêu bằng thẻ":
                     - Chỉ đọc credit_cards và credit_card_transactions.
                     - Không kéo sang phân tích nợ/chia tiền nếu người dùng không hỏi.
 
                     Khi câu hỏi nói về "nợ", "chia tiền", "ai nợ ai":
-                    - Chỉ đọc expenses cùng participants/payer/isSettled.
+                    - Ưu tiên đọc debt_split_summary.
+                    - Có thể dùng split_transactions để giải thích chi tiết từng khoản.
                     - Không kéo sang thẻ tín dụng nếu người dùng không hỏi.
+
+                    Khi câu hỏi nói về thu nhập:
+                    - Chỉ đọc incomes và summary.incomeByCategory.
+
+                    Khi câu hỏi nói về chi tiêu:
+                    - Chỉ đọc expenses và summary.expenseByCategory.
                     """.trimIndent()
                 )
 
@@ -252,6 +352,20 @@ class ChatViewModel(
             cal.set(java.util.Calendar.DAY_OF_MONTH, statementDay.coerceAtMost(maxDay))
         }
         return cal
+    }
+
+    private fun Map<String, Double>.toJsonArray(): JSONArray {
+        val result = JSONArray()
+        entries
+            .sortedByDescending { it.value }
+            .forEach { (category, amount) ->
+                result.put(
+                    JSONObject()
+                        .put("category", category)
+                        .put("amount", amount)
+                )
+            }
+        return result
     }
 
     companion object {

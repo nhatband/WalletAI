@@ -432,11 +432,29 @@ private fun ExpenseBottomSheet(
             var tabIndex by remember(state.editingExpenseId) {
                 mutableStateOf(if (state.manualTransactionKind == TRANSACTION_KIND_INCOME) 1 else 0)
             }
+            var wasBillLoading by remember { mutableStateOf(false) }
             val tabs = listOf(
                 stringResource(R.string.tab_expense),
                 stringResource(R.string.tab_income),
                 stringResource(R.string.ai_parser)
             )
+
+            LaunchedEffect(state.isBillLoading, state.manualTitle, state.manualAmount, state.errorMessage) {
+                if (state.isBillLoading) {
+                    wasBillLoading = true
+                } else if (
+                    wasBillLoading &&
+                    tabIndex == 2 &&
+                    state.errorMessage == null &&
+                    state.manualTitle.isNotBlank() &&
+                    state.manualAmount.isNotBlank()
+                ) {
+                    tabIndex = 0
+                    wasBillLoading = false
+                } else if (!state.isBillLoading) {
+                    wasBillLoading = false
+                }
+            }
 
             TabRow(selectedTabIndex = tabIndex) {
                 tabs.forEachIndexed { index, title ->
